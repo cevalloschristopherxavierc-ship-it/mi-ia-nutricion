@@ -11,64 +11,54 @@ else:
 
 st.set_page_config(page_title="FitIA Pro", page_icon="⚪", layout="centered")
 
-# 2. Diseño Minimalista (Blanco y Azul Premium)
+# 2. CSS Minimalista con Enfoque en Unidades
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; background-color: #ffffff; }
+    
+    /* Botones de Navegación */
     .stButton>button {
-        border-radius: 50px; padding: 12px; background-color: #007AFF;
-        color: white; border: none; font-weight: 600; width: 100%;
+        border-radius: 12px; padding: 10px; font-weight: 600; width: 100%; transition: 0.3s;
     }
+    .next-btn>div>button { background-color: #007AFF; color: white; border: none; }
+    .back-btn>div>button { background-color: #ffffff; color: #86868b; border: 1px solid #e0e0e0; }
+    
+    /* Tarjetas de Dashboard */
     .card {
         background: #fcfcfc; padding: 15px; border-radius: 15px;
         border: 1px solid #f0f0f0; text-align: center; margin-bottom: 10px;
     }
-    .card-val { font-size: 24px; font-weight: 600; color: #1d1d1f; }
+    .card-val { font-size: 22px; font-weight: 600; color: #1d1d1f; }
     .card-lab { font-size: 10px; color: #86868b; text-transform: uppercase; letter-spacing: 1px; }
-    .unit-tag { font-size: 13px; color: #007AFF; font-weight: 500; margin-top: 5px; display: block; }
+    
+    /* Etiquetas de Unidades (kg, cm, etc) */
+    .unit-hint { 
+        color: #007AFF; font-size: 13px; font-weight: 600; 
+        margin-top: -15px; margin-bottom: 15px; display: block;
+    }
+    
     h1 { font-weight: 600; color: #1d1d1f; text-align: center; letter-spacing: -1px; }
-    p { text-align: center; color: #86868b; font-size: 14px; }
+    .step-text { text-align: center; color: #007AFF; font-weight: 600; font-size: 12px; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- NAVEGACIÓN ---
+# --- LÓGICA DE NAVEGACIÓN ---
 if 'step' not in st.session_state:
     st.session_state.step = 1
-    st.session_state.user = {}
+    st.session_state.user = {'sexo': 'Masculino', 'edad': 25, 'altura': 170, 'peso': 70.0, 'obj': 'Ganar masa muscular'}
 
-def next_step(): st.session_state.step += 1
-def reset(): st.session_state.step = 1
+def set_step(s): st.session_state.step = s
 
-# --- PANTALLAS PASO A PASO ---
+# --- PANTALLAS ---
 
+# PASO 1: GÉNERO Y EDAD
 if st.session_state.step == 1:
-    st.markdown("<h1>Identidad</h1><p>Paso 1 de 3</p>", unsafe_allow_html=True)
-    st.session_state.user['sexo'] = st.selectbox("Sexo Biológico", ["Masculino", "Femenino"])
-    st.session_state.user['edad'] = st.number_input("Edad", 10, 95, 25)
-    st.button("Siguiente", on_click=next_step)
-
-elif st.session_state.step == 2:
-    st.markdown("<h1>Medidas</h1><p>Paso 2 de 3</p>", unsafe_allow_html=True)
+    st.markdown("<p class='step-text'>PASO 1 DE 4</p><h1>Perfil Básico</h1>", unsafe_allow_html=True)
+    st.session_state.user['sexo'] = st.selectbox("Selecciona tu Sexo", ["Masculino", "Femenino"])
+    st.session_state.user['edad'] = st.number_input("Introduce tu Edad", 10, 100, st.session_state.user['edad'])
+    st.markdown("<span class='unit-hint'>años</span>", unsafe_allow_html=True)
     
-    # Altura con conversión m/cm
-    alt = st.number_input("Estatura", 100, 250, 170)
-    st.markdown(f"<span class='unit-tag'>{alt} cm equivale a {alt/100} metros</span>", unsafe_allow_html=True)
-    st.session_state.user['altura'] = alt
-    
-    st.divider()
-    
-    # Peso con conversión kg/lbs
-    peso = st.number_input("Peso Corporal", 30.0, 250.0, 70.0)
-    st.markdown(f"<span class='unit-tag'>{peso} kg equivale a {round(peso*2.204, 1)} libras</span>", unsafe_allow_html=True)
-    st.session_state.user['peso'] = peso
-    
-    st.button("Siguiente", on_click=next_step)
-
-elif st.session_state.step == 3:
-    st.markdown("<h1>Meta</h1><p>Paso 3 de 3</p>", unsafe_allow_html=True)
-    obj = st.selectbox("Tu objetivo", ["Ganar masa muscular", "Perder grasa", "Salud General"])
-    
-    if st.button("Finalizar y Calcular"):
-        u = st.session_state.user
-        # Cálculo
+    st.markdown("<div class='next-btn'>", unsafe_allow_html=True)
+    st.button("Siguiente", on_click=set_step, args=(2,))
+    st.markdown("</div>", unsafe_allow_html=True)
