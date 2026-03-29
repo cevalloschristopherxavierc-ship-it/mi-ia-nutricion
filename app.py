@@ -7,10 +7,10 @@ if "GEMINI_API_KEY" in st.secrets:
     API_KEY = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=API_KEY)
 else:
-    st.error("❌ Configura GEMINI_API_KEY en los Secrets de Streamlit.")
+    st.error("❌ Configura GEMINI_API_KEY en los Secrets.")
     st.stop()
 
-# 2. Interfaz de usuario
+# 2. Interfaz
 st.set_page_config(page_title="IA Nutrición", page_icon="💪")
 st.markdown("# 🥗 Asistente de Nutrición")
 
@@ -23,15 +23,10 @@ if archivo:
     if st.button("🔍 Analizar Nutrientes"):
         with st.spinner("Analizando con Gemini 1.5 Flash..."):
             try:
-                # AQUÍ ESTÁ EL CAMBIO: Todo esto lleva 4 espacios extra a la derecha
+                # Nombre exacto y moderno del modelo
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                
-                res = model.generate_content([
-                    "Analiza las calorías y macros de esta comida. ¿Sirve para ganar músculo?", 
-                    img
-                ])
-                
-                st.success("¡Análisis completado!")
+                res = model.generate_content(["Analiza calorías y macros. ¿Es bueno para hipertrofia?", img])
+                st.success("¡Listo!")
                 st.markdown(res.text)
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Error técnico: {e}")
