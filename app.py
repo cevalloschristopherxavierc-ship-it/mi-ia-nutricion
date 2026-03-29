@@ -4,9 +4,10 @@ from PIL import Image
 
 # 1. Configuración de la API
 if "GEMINI_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    API_KEY = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=API_KEY)
 else:
-    st.error("❌ Configura la clave en Secrets de Streamlit.")
+    st.error("❌ Falta la clave en Secrets.")
     st.stop()
 
 # 2. Interfaz
@@ -20,24 +21,28 @@ if archivo:
     st.image(img, use_container_width=True)
     
     if st.button("🔍 Analizar"):
-        with st.spinner("Cambiando estrategia de conexión..."):
+        with st.spinner("Buscando modelo compatible..."):
             try:
-                # CAMBIO CLAVE: Usamos la versión 1.0 que es "blindada" contra errores 404
-                model = genai.GenerativeModel('gemini-1.0-pro-vision-latest')
-                
-                # En esta versión, el orden de los factores importa
-                res = model.generate_content([
-                    "Analiza las calorías y macros de esta comida para hipertrofia.", 
-                    img
-                ])
-                
-                st.success("¡Por fin conectamos!")
+                # Paso 1: Intentar con el modelo más moderno (Nombre estándar)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                res = model.generate_content(["Analiza los macros de esta comida.", img])
+                st.success("¡Conexión exitosa!")
                 st.write(res.text)
+                
             except Exception as e:
-                # Si falla, intentamos la última ruta posible
+                # Paso 2: Si falla, buscamos qué modelos TIENE tu cuenta realmente
+                st.warning("Reintentando con configuración alternativa...")
                 try:
-                    model_fallback = genai.GenerativeModel('models/gemini-1.5-flash')
-                    res = model_fallback.generate_content(["Analiza la imagen", img])
+                    # Listamos los modelos que soportan generación de contenido
+                    modelos_disponibles = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    
+                    # Filtramos uno que sirva para imágenes (Flash o Pro)
+                    modelo_final = next((m for m in modelos_disponibles if "flash" in m or "pro" in m), modelos_disponibles[0])
+                    
+                    model_alt = genai.GenerativeModel(modelo_final)
+                    res = model_alt.generate_content(["Analiza los macros de esta comida.", img])
+                    st.success(f"¡Conectado usando {modelo_final}!")
                     st.write(res.text)
-                except:
-                    st.error(f"Error persistente: {e}")
+                except Exception as e2:
+                    st.error(f"Error crítico: {e2}")
+                    st.info("Asegúrate de que tu API KEY no tenga restricciones de región en Google Cloud.")
