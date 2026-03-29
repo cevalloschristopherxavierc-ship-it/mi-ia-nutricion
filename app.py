@@ -85,3 +85,35 @@ elif st.session_state.paso == 4:
 elif st.session_state.paso == 5:
     st.markdown("<h1>Resumen Diario</h1>", unsafe_allow_html=True)
     m = st.session_state.m
+    
+    # Grid de 5 tarjetas
+    cols = st.columns(5)
+    lbs = [("Calorías", m['cal'], "kcal"), ("Proteína", m['pro'], "g"), ("Grasas", m['gra'], "g"), ("Carbos", m['car'], "g"), ("Agua", m['h2o'], "L")]
+    
+    for i, col in enumerate(cols):
+        with col:
+            st.markdown(f"<div class='card'><div class='card-lab'>{lbs[i][0]}</div><div class='card-val'>{lbs[i][1]}</div><div style='font-size:10px;'>{lbs[i][2]}</div></div>", unsafe_allow_html=True)
+    
+    st.divider()
+    st.markdown("### 📸 Escáner de Comida")
+    f = st.file_uploader("Sube tu plato aquí...", type=["jpg", "png", "jpeg"], label_visibility="collapsed")
+    
+    if f:
+        img = Image.open(f)
+        st.image(img, use_container_width=True)
+        with st.spinner("🤖 Jarvis analizando..."):
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            prompt = "Analiza en ESPAÑOL: NombrePlato|Kcal|Prot|Carb|Gras. Solo texto separado por |"
+            response = model.generate_content([prompt, img])
+            res = response.text.strip().split('|')
+            if len(res) >= 5:
+                st.success(f"Detección: {res[0]}")
+                r_cols = st.columns(4)
+                r_lbs = [("Calorías", res[1], "kcal"), ("Proteína", res[2], "g"), ("Carbos", res[3], "g"), ("Grasas", res[4], "g")]
+                for j, r_col in enumerate(r_cols):
+                    with r_col:
+                        st.markdown(f"<div class='card' style='border-top:3px solid #007AFF'><div class='card-lab'>{r_lbs[j][0]}</div><div class='card-val'>{r_lbs[j][1]}</div></div>", unsafe_allow_html=True)
+    
+    if st.button("🔄 Reiniciar Perfil", key="reset"):
+        st.session_state.paso = 1
+        st.rerun()
