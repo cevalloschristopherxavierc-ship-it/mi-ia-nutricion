@@ -24,8 +24,8 @@ if archivo:
         with st.spinner("Analizando con Gemini 1.5 Flash..."):
             try:
                 # Nombre exacto y moderno del modelo
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                res = model.generate_content(["Analiza calorías y macros. ¿Es bueno para hipertrofia?", img])
+                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                res = model.generate_content(["Analiza calorías y macros de esta imagen:", img])
                 st.success("¡Listo!")
                 st.markdown(res.text)
             except Exception as e:
