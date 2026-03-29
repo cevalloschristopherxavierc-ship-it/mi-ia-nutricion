@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
-# Tu clave API
+# Tu clave API (SIN ESPACIOS antes de AIza)
 API_KEY = "AIzaSyDDCESvGkob8chj4y2mU6Y1nmD1j-trA6g"
 genai.configure(api_key=API_KEY)
 
@@ -19,13 +19,14 @@ if archivo_subido is not None:
     if st.button("🔍 Analizar Nutrientes"):
         with st.spinner("Analizando..."):
             model = genai.GenerativeModel("gemini-1.5-flash")
-            # Fíjate que 'contenido' está justo debajo de 'model'
+            # El texto y la imagen bien organizados
             contenido = [
                 "Analiza las calorías y macros de esta comida. Dime si sirve para ganar músculo.",
                 imagen
             ]
             try:
                 respuesta = model.generate_content(contenido)
+                st.success("¡Análisis listo!")
                 st.write(respuesta.text)
             except Exception as e:
                 st.error(f"Error: {e}")
