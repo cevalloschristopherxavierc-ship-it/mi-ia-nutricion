@@ -2,11 +2,11 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
-# Esta línea busca la clave que guardaste en Secrets
+# 1. Conexión segura con los Secrets de Streamlit
 API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
 
-# Configuración de la página
+# 2. Configuración visual
 st.set_page_config(page_title="IA Nutrición", page_icon="💪")
 st.markdown("# 🥗 Asistente de Nutrición y Fitness")
 
@@ -17,15 +17,16 @@ if archivo_subido is not None:
     st.image(imagen, use_container_width=True)
     
     if st.button("🔍 Analizar Nutrientes"):
+        # Lo que sigue debajo de 'with' DEBE tener 4 espacios extra
         with st.spinner("Analizando..."):
-          # Usamos la versión estable "gemini-1.5-flash-latest" para evitar el error 404
-model = genai.GenerativeModel("gemini-1.5-flash-latest")
-            # El texto y la imagen bien organizados
-            contenido = [
-                "Analiza las calorías y macros de esta comida. Dime si sirve para ganar músculo.",
-                imagen
-            ]
             try:
+                model = genai.GenerativeModel("gemini-1.5-flash-latest")
+                
+                contenido = [
+                    "Analiza las calorías y macros de esta comida. Dime si sirve para ganar músculo.",
+                    imagen
+                ]
+                
                 respuesta = model.generate_content(contenido)
                 st.success("¡Análisis listo!")
                 st.write(respuesta.text)
