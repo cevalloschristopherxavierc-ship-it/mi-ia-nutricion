@@ -1,17 +1,24 @@
+import streamlit as st  # <-- ESTO DEBE IR PRIMERO
+import google.generativeai as genai
+from PIL import Image
 import os
-# ... otros imports ...
 
-if "GEMINI_API_KEY" in st.secrets:
-    # Esto obliga a la librería a NO usar v1beta
-    os.environ["GOOGLE_API_USE_MTLS_ENDPOINT"] = "never" 
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-else:
-    st.error("Falta API Key")
+# 1. Configuración de API Segura
+# Primero verificamos si Streamlit está cargado correctamente
+try:
+    if "GEMINI_API_KEY" in st.secrets:
+        # Forzamos a la librería a usar la versión estable
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    else:
+        st.error("⚠️ Falta la clave 'GEMINI_API_KEY' en los Secrets de Streamlit.")
+        st.stop()
+except Exception as e:
+    st.error(f"Error al cargar secretos: {e}")
     st.stop()
 
 st.set_page_config(page_title="FitIA Pro", page_icon="🥗", layout="centered")
 
-# 2. Estilo CSS
+# 2. Estilo CSS Minimalista
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -23,7 +30,7 @@ st.markdown("""
     .card-val { font-size: 20px; font-weight: 700; color: #1d1d1f; }
     .card-lab { font-size: 10px; color: #86868b; text-transform: uppercase; font-weight: 600; }
     .unit-tag { color: #007AFF; font-size: 13px; font-weight: 600; display: block; text-align: center; margin-bottom: 10px; }
-    h1 { font-weight: 700; color: #1d1d1f; text-align: center; }
+    h1 { font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -1px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -35,7 +42,7 @@ if 'paso' not in st.session_state:
 def ir(n):
     st.session_state.paso = n
 
-# --- PANTALLAS DE CONFIGURACIÓN ---
+# --- PANTALLAS ---
 if st.session_state.paso == 1:
     st.markdown("<h1>Tu Perfil</h1>", unsafe_allow_html=True)
     st.session_state.u['sexo'] = st.radio("Sexo:", ["Masculino", "Femenino"], horizontal=True)
@@ -45,7 +52,7 @@ if st.session_state.paso == 1:
 
 elif st.session_state.paso == 2:
     st.markdown("<h1>Estatura</h1>", unsafe_allow_html=True)
-    val = st.number_input("Altura:", 100, 250, st.session_state.u['alt'])
+    val = st.number_input("Altura (cm):", 100, 250, st.session_state.u['alt'])
     st.markdown(f"<span class='unit-tag'>{val} cm / {val/100:.2f} m</span>", unsafe_allow_html=True)
     st.session_state.u['alt'] = val
     c1, c2 = st.columns(2)
@@ -54,7 +61,7 @@ elif st.session_state.paso == 2:
 
 elif st.session_state.paso == 3:
     st.markdown("<h1>Peso</h1>", unsafe_allow_html=True)
-    val = st.number_input("Peso:", 30.0, 250.0, st.session_state.u['peso'])
+    val = st.number_input("Peso (kg):", 30.0, 250.0, st.session_state.u['peso'])
     st.markdown(f"<span class='unit-tag'>{val} kg / {round(val*2.204, 1)} lbs</span>", unsafe_allow_html=True)
     st.session_state.u['peso'] = val
     c1, c2 = st.columns(2)
@@ -75,7 +82,6 @@ elif st.session_state.paso == 4:
             st.session_state.paso = 5
             st.rerun()
 
-# --- DASHBOARD FINAL ---
 elif st.session_state.paso == 5:
     st.markdown("<h1>Resumen Diario</h1>", unsafe_allow_html=True)
     m = st.session_state.m
@@ -86,18 +92,16 @@ elif st.session_state.paso == 5:
     
     st.divider()
     st.markdown("### 📸 Escáner de Comida")
-    f = st.file_uploader("Sube tu plato aquí...", type=["jpg", "png", "jpeg"], label_visibility="collapsed")
+    f = st.file_uploader("Sube tu plato...", type=["jpg", "png", "jpeg"], label_visibility="collapsed")
     
     if f:
         img = Image.open(f)
         st.image(img, use_container_width=True)
-        with st.spinner("🤖 Jarvis analizando..."):
+        with st.spinner("🤖 Analizando..."):
             try:
-                # Cambiamos el nombre del modelo al estándar de producción
+                # Usamos el nombre del modelo compatible
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                prompt = "Analiza esta comida. Responde SOLO con este formato: Nombre|Kcal|Proteina(g)|Carbos(g)|Grasas(g). No añadas nada más."
-                
-                # Intentamos generar contenido
+                prompt = "Analiza esta comida. Responde SOLO: Nombre|Kcal|Prot|Carb|Gras. Sin nada más."
                 response = model.generate_content([prompt, img])
                 
                 res = response.text.strip().split('|')
@@ -108,9 +112,9 @@ elif st.session_state.paso == 5:
                     for j, r_col in enumerate(r_cols):
                         with r_col: st.markdown(f"<div class='card' style='border-top:3px solid #007AFF'><div class='card-lab'>{r_lbs[j][0]}</div><div class='card-val'>{r_lbs[j][1]}</div></div>", unsafe_allow_html=True)
                 else:
-                    st.warning("IA: Formato no reconocido. Prueba con otra foto.")
+                    st.warning("Formato no reconocido. Intenta con otra foto clara.")
             except Exception as e:
-                st.error(f"Error de API: {e}")
+                st.error(f"Error de conexión: {e}")
     
     if st.button("🔄 Reiniciar Perfil", key="reset"):
         st.session_state.paso = 1
