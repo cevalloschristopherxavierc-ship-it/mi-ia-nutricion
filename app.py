@@ -1,12 +1,12 @@
-import streamlit as st
-import google.generativeai as genai
-from PIL import Image
+import os
+# ... otros imports ...
 
-# 1. Configuración de API
 if "GEMINI_API_KEY" in st.secrets:
+    # Esto obliga a la librería a NO usar v1beta
+    os.environ["GOOGLE_API_USE_MTLS_ENDPOINT"] = "never" 
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
-    st.error("Falta API Key en Secrets.")
+    st.error("Falta API Key")
     st.stop()
 
 st.set_page_config(page_title="FitIA Pro", page_icon="🥗", layout="centered")
