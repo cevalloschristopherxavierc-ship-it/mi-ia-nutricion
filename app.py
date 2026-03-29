@@ -19,5 +19,13 @@ if archivo_subido is not None:
     if st.button("🔍 Analizar Nutrientes"):
         with st.spinner("Analizando..."):
             model = genai.GenerativeModel("gemini-1.5-flash")
-            respuesta = model.generate_content([{"mime_type": "image/jpeg", "data": archivo_subido.getvalue()}, "Analiza las calorías y macros de esta comida para hipertrofia"])
-            st.write(respuesta.text)
+            # El orden correcto: Texto primero, luego la imagen
+            contenido = [
+                "Analiza las calorías y macros de esta comida. Dime si sirve para ganar músculo.",
+                imagen
+            ]
+            try:
+                respuesta = model.generate_content(contenido)
+                st.write(respuesta.text)
+            except Exception as e:
+                st.error(f"Error: {e}")
