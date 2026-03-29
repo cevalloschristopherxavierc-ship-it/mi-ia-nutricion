@@ -3,7 +3,7 @@ import google.generativeai as genai
 from PIL import Image
 
 # Tu clave API
-API_KEY = "AIzaSyDDCESvGkob8chj4y2mU6Y1nmD1j-trA6g"
+API_KEY="AIzaSyDDCESvGkob8chj4y2mU6Y1nmD1j-trA6g"
 genai.configure(api_key=API_KEY)
 
 # Configuración de la página
