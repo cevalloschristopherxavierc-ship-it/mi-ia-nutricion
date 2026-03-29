@@ -18,7 +18,7 @@ if archivo_subido is not None:
     
     if st.button("🔍 Analizar Nutrientes"):
         with st.spinner("Analizando..."):
-            model = genai.GenerativeModel("gemini-1.5-flash")
+           model = genai.GenerativeModel("gemini-pro-vision")
             # El orden correcto: Texto primero, luego la imagen
             contenido = [
                 "Analiza las calorías y macros de esta comida. Dime si sirve para ganar músculo.",
