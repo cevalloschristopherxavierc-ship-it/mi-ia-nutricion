@@ -18,7 +18,8 @@ if archivo_subido is not None:
     
     if st.button("🔍 Analizar Nutrientes"):
         with st.spinner("Analizando..."):
-            model = genai.GenerativeModel("gemini-1.5-flash")
+          # Usamos la versión estable "gemini-1.5-flash-latest" para evitar el error 404
+model = genai.GenerativeModel("gemini-1.5-flash-latest")
             # El texto y la imagen bien organizados
             contenido = [
                 "Analiza las calorías y macros de esta comida. Dime si sirve para ganar músculo.",
