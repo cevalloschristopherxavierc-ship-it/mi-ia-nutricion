@@ -2,9 +2,12 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
-# 1. Conexión segura con los Secrets de Streamlit
-API_KEY = st.secrets["GEMINI_API_KEY"]
-genai.configure(api_key=API_KEY)
+# 1. Conexión segura con los Secrets
+try:
+    API_KEY = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=API_KEY)
+except Exception as e:
+    st.error("Error con la API Key en Secrets. Revisa la configuración.")
 
 # 2. Configuración visual
 st.set_page_config(page_title="IA Nutrición", page_icon="💪")
@@ -17,18 +20,17 @@ if archivo_subido is not None:
     st.image(imagen, use_container_width=True)
     
     if st.button("🔍 Analizar Nutrientes"):
-        # Lo que sigue debajo de 'with' DEBE tener 4 espacios extra
-        with st.spinner("Analizando..."):
+        with st.spinner("Analizando con IA..."):
+            # Usamos el nombre base que es el más compatible hoy
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            
             try:
-                model = genai.GenerativeModel("gemini-1.5-flash-latest")
-                
-                contenido = [
-                    "Analiza las calorías y macros de esta comida. Dime si sirve para ganar músculo.",
+                # Enviamos la imagen y el texto juntos
+                respuesta = model.generate_content([
+                    "Analiza esta comida. Dime: 1. Calorías aprox. 2. Macros (P/C/G). 3. ¿Es buena para hipertrofia?", 
                     imagen
-                ]
-                
-                respuesta = model.generate_content(contenido)
-                st.success("¡Análisis listo!")
+                ])
+                st.success("¡Análisis completado!")
                 st.write(respuesta.text)
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Hubo un problema al procesar la imagen: {e}")
