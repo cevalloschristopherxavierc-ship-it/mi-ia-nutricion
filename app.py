@@ -4,7 +4,7 @@ from PIL import Image
 import os
 
 # Tu clave ya integrada:
-API_KEY = "AIzaSyDDCESvGkob8chj4y2mU6Y1nmD1j-trA6g"
+API_KEY="AIzaSyDDCESvGkob8chj4y2mU6Y1nmD1j-trA6g"
 genai.configure(api_key=API_KEY)
 
 # Configuración de la página
