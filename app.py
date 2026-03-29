@@ -24,7 +24,7 @@ if archivo:
         with st.spinner("Analizando con Gemini 1.5..."):
             try:
                 # Usamos el modelo más estable
-                model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-1.5-flash')
                 res = model.generate_content(["Analiza las calorías y macros de esta comida.", img])
                 st.success("¡Listo!")
                 st.write(res.text)
