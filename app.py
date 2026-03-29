@@ -32,7 +32,8 @@ if 'paso' not in st.session_state:
     st.session_state.paso = 1
     st.session_state.u = {'sexo': 'Masculino', 'alt': 170, 'peso': 70.0, 'obj': 'Mantenimiento'}
 
-def ir(n): st.session_state.paso = n
+def ir(n):
+    st.session_state.paso = n
 
 # --- PANTALLAS ---
 
@@ -49,8 +50,14 @@ elif st.session_state.paso == 2:
     st.markdown(f"<span class='unit-tag'>{val} cm / {val/100:.2f} m</span>", unsafe_allow_html=True)
     st.session_state.u['alt'] = val
     c1, c2 = st.columns(2)
-    with c1: st.markdown("<div class='back-btn'>", unsafe_allow_html=True); st.button("⬅️ Atrás", on_click=ir, args=(1,)); st.markdown("</div>", unsafe_allow_html=True)
-    with c2: st.markdown("<div class='next-btn'>", unsafe_allow_html=True); st.button("Siguiente ➡️", on_click=ir, args=(3,)); st.markdown("</div>", unsafe_allow_html=True)
+    with c1:
+        st.markdown("<div class='back-btn'>", unsafe_allow_html=True)
+        st.button("⬅️ Atrás", key="b1", on_click=ir, args=(1,))
+        st.markdown("</div>", unsafe_allow_html=True)
+    with c2:
+        st.markdown("<div class='next-btn'>", unsafe_allow_html=True)
+        st.button("Siguiente ➡️", key="n1", on_click=ir, args=(3,))
+        st.markdown("</div>", unsafe_allow_html=True)
 
 elif st.session_state.paso == 3:
     st.markdown("<h1>Peso</h1>", unsafe_allow_html=True)
@@ -58,11 +65,26 @@ elif st.session_state.paso == 3:
     st.markdown(f"<span class='unit-tag'>{val} kg / {round(val*2.204, 1)} lbs</span>", unsafe_allow_html=True)
     st.session_state.u['peso'] = val
     c1, c2 = st.columns(2)
-    with c1: st.markdown("<div class='back-btn'>", unsafe_allow_html=True); st.button("⬅️ Atrás", on_click=ir, args=(2,)); st.markdown("</div>", unsafe_allow_html=True)
-    with c2: st.markdown("<div class='next-btn'>", unsafe_allow_html=True); st.button("Siguiente ➡️", on_click=ir_a if 'ir_a' in globals() else ir, args=(4,)); st.markdown("</div>", unsafe_allow_html=True)
+    with c1:
+        st.markdown("<div class='back-btn'>", unsafe_allow_html=True)
+        st.button("⬅️ Atrás", key="b2", on_click=ir, args=(2,))
+        st.markdown("</div>", unsafe_allow_html=True)
+    with c2:
+        st.markdown("<div class='next-btn'>", unsafe_allow_html=True)
+        st.button("Siguiente ➡️", key="n2", on_click=ir, args=(4,))
+        st.markdown("</div>", unsafe_allow_html=True)
 
 elif st.session_state.paso == 4:
     st.markdown("<h1>Objetivo</h1>", unsafe_allow_html=True)
     st.session_state.u['obj'] = st.selectbox("Meta:", ["Ganar masa muscular", "Perder grasa", "Mantenimiento"])
     c1, c2 = st.columns(2)
-    with c1: st.markdown("<div class='back-btn'>", unsafe_allow_html=True); st.button("⬅️ Atrás", on_click=ir, args=(3,)); st
+    with c1:
+        st.markdown("<div class='back-btn'>", unsafe_allow_html=True)
+        st.button("⬅️ Atrás", key="b3", on_click=ir, args=(3,))
+        st.markdown("</div>", unsafe_allow_html=True)
+    with c2:
+        if st.button("Finalizar ✨", key="fin"):
+            u = st.session_state.u
+            cal = int(((10 * u['peso']) + (6.25 * u['alt'])) * 1.5)
+            if "Ganar" in u['obj']: cal += 450
+            st.session_state
