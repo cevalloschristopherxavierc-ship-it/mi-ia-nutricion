@@ -35,8 +35,7 @@ if 'paso' not in st.session_state:
 def ir(n):
     st.session_state.paso = n
 
-# --- PANTALLAS ---
-
+# --- PANTALLAS DE CONFIGURACIÓN ---
 if st.session_state.paso == 1:
     st.markdown("<h1>Tu Perfil</h1>", unsafe_allow_html=True)
     st.session_state.u['sexo'] = st.radio("Sexo:", ["Masculino", "Femenino"], horizontal=True)
@@ -70,12 +69,13 @@ elif st.session_state.paso == 4:
     with c2:
         if st.button("Finalizar ✨", key="fin"):
             u = st.session_state.u
-            cal = int(((10 * u['peso']) + (6.25 * u['alt'])) * 1.5)
-            if "Ganar" in u['obj']: cal += 450
-            st.session_state.m = {"cal": cal, "pro": int(u['peso']*2.1), "gra": int(u['peso']*0.8), "car": int(u['peso']*4), "h2o": round(u['peso']*0.035, 1)}
+            calBase = int(((10 * u['peso']) + (6.25 * u['alt'])) * 1.5)
+            if "Ganar" in u['obj']: calBase += 450
+            st.session_state.m = {"cal": calBase, "pro": int(u['peso']*2.1), "gra": int(u['peso']*0.8), "car": int(u['peso']*4), "h2o": round(u['peso']*0.035, 1)}
             st.session_state.paso = 5
             st.rerun()
 
+# --- DASHBOARD FINAL ---
 elif st.session_state.paso == 5:
     st.markdown("<h1>Resumen Diario</h1>", unsafe_allow_html=True)
     m = st.session_state.m
@@ -93,9 +93,11 @@ elif st.session_state.paso == 5:
         st.image(img, use_container_width=True)
         with st.spinner("🤖 Jarvis analizando..."):
             try:
-                # Usamos el modelo '-latest' para evitar el error 404
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                prompt = "Analiza en ESPAÑOL: NombrePlato|Kcal|Prot|Carb|Gras. Responde solo el formato separado por |"
+                # Cambiamos el nombre del modelo al estándar de producción
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                prompt = "Analiza esta comida. Responde SOLO con este formato: Nombre|Kcal|Proteina(g)|Carbos(g)|Grasas(g). No añadas nada más."
+                
+                # Intentamos generar contenido
                 response = model.generate_content([prompt, img])
                 
                 res = response.text.strip().split('|')
@@ -106,9 +108,9 @@ elif st.session_state.paso == 5:
                     for j, r_col in enumerate(r_cols):
                         with r_col: st.markdown(f"<div class='card' style='border-top:3px solid #007AFF'><div class='card-lab'>{r_lbs[j][0]}</div><div class='card-val'>{r_lbs[j][1]}</div></div>", unsafe_allow_html=True)
                 else:
-                    st.error("Formato de respuesta inválido. Intenta de nuevo.")
+                    st.warning("IA: Formato no reconocido. Prueba con otra foto.")
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Error de API: {e}")
     
     if st.button("🔄 Reiniciar Perfil", key="reset"):
         st.session_state.paso = 1
