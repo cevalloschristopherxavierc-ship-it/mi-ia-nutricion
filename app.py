@@ -3,7 +3,7 @@ import google.generativeai as genai
 from PIL import Image
 
 # Tu clave API
-API_KEY="AIzaSyBYB_z2E1x3ovwjMh2mtuGsWzYRk-GkFQI"
+API_KEY = "AIzaSyDDCESvGkob8chj4y2mU6Y1nmD1j-trA6g"
 genai.configure(api_key=API_KEY)
 
 # Configuración de la página
@@ -18,8 +18,8 @@ if archivo_subido is not None:
     
     if st.button("🔍 Analizar Nutrientes"):
         with st.spinner("Analizando..."):
-           model = genai.GenerativeModel("gemini-pro-vision")
-            # El orden correcto: Texto primero, luego la imagen
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            # Fíjate que 'contenido' está justo debajo de 'model'
             contenido = [
                 "Analiza las calorías y macros de esta comida. Dime si sirve para ganar músculo.",
                 imagen
