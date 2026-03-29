@@ -91,13 +91,11 @@ elif st.session_state.paso == 5:
     if f:
         img = Image.open(f)
         st.image(img, use_container_width=True)
-       with st.spinner("🤖 Jarvis analizando..."):
+        with st.spinner("🤖 Jarvis analizando..."):
             try:
-                # Cambiamos a 'gemini-1.5-flash-latest' para máxima compatibilidad
+                # Usamos el modelo '-latest' para evitar el error 404
                 model = genai.GenerativeModel('gemini-1.5-flash-latest')
                 prompt = "Analiza en ESPAÑOL: NombrePlato|Kcal|Prot|Carb|Gras. Responde solo el formato separado por |"
-                
-                # Forzamos la configuración de generación para evitar errores de v1beta
                 response = model.generate_content([prompt, img])
                 
                 res = response.text.strip().split('|')
@@ -108,9 +106,9 @@ elif st.session_state.paso == 5:
                     for j, r_col in enumerate(r_cols):
                         with r_col: st.markdown(f"<div class='card' style='border-top:3px solid #007AFF'><div class='card-lab'>{r_lbs[j][0]}</div><div class='card-val'>{r_lbs[j][1]}</div></div>", unsafe_allow_html=True)
                 else:
-                    st.error("La IA no devolvió el formato correcto. Intenta con otra foto.")
+                    st.error("Formato de respuesta inválido. Intenta de nuevo.")
             except Exception as e:
-                st.error(f"Error de conexión con Google: {e}")
+                st.error(f"Error: {e}")
     
     if st.button("🔄 Reiniciar Perfil", key="reset"):
         st.session_state.paso = 1
