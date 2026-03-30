@@ -48,7 +48,7 @@ rutina = {
 }
 
 meta_k = 3200 if st.session_state.u_obj == "Fútbol" else 2750
-meta_p = st.session_state.u_pes * 2.2 # 138.6g para Xavier
+meta_p = st.session_state.u_pes * 2.2 
 if 'agua' not in st.session_state: st.session_state.agua = 0.0
 if 'pasos' not in st.session_state: st.session_state.pasos = 0
 
@@ -68,7 +68,7 @@ with st.sidebar:
     cod = st.text_input("Código Maestro:", type="password")
     st.session_state.creador = (cod == "xavier2210")
 
-# --- 5. OBTENCIÓN DE DATOS ---
+# --- 5. OBTENCIÓN DE DATA ---
 p_act, k_act = 0.0, 0.0
 df_hoy, df_all = pd.DataFrame(), pd.DataFrame()
 try:
@@ -98,4 +98,12 @@ with t1:
             with st.spinner("🤖 Analizando..."):
                 try:
                     img_b64 = base64.b64encode(foto.read()).decode()
-                    payload = {"contents":[{"parts":[{"text":"Nombre|Kcal|Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64
+                    # --- CORRECCIÓN LÍNEA 101: Estructura multilínea limpia ---
+                    payload = {
+                        "contents": [{
+                            "parts": [
+                                {"text": "Nombre|Kcal|Prot"},
+                                {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
+                            ]
+                        }]
+                    }
