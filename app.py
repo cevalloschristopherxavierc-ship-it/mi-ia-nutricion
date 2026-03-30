@@ -16,7 +16,7 @@ try:
     URL_AI = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={G_KEY}"
     supabase: Client = create_client(S_URL, S_KEY)
 except:
-    st.error("⚠️ Configura los Secrets en Streamlit Cloud.")
+    st.error("⚠️ Error en Secrets. Revisa Streamlit Cloud.")
     st.stop()
 
 # --- 3. ESTILOS ---
@@ -35,12 +35,12 @@ if 'prot' not in st.session_state: st.session_state.prot = 0.0
 if 'carb' not in st.session_state: st.session_state.carb = 0.0
 if 'gras' not in st.session_state: st.session_state.gras = 0.0
 
-# --- 5. SIDEBAR: PREGUNTAS PARA USUARIOS ---
+# --- 5. SIDEBAR: PREGUNTAS (SISTEMA NUEVO) ---
 with st.sidebar:
     st.title("🦾 PERFIL JARVIS")
-    st.info("Configura tu perfil de atleta:")
+    st.info("Configura tus datos de atleta:")
     u_nom = st.text_input("Nombre:", value="Xavier")
-    u_pes = st.number_input("Peso Actual (kg):", value=63.0, help="Si eres nuevo, ajusta tu peso aquí.")
+    u_pes = st.number_input("Peso Actual (kg):", value=63.0)
     u_alt = st.number_input("Estatura (cm):", value=170)
     u_eda = st.number_input("Edad:", value=20)
     
@@ -50,28 +50,11 @@ with st.sidebar:
     prog = min(st.session_state.kcal_total / meta_diaria, 1.0)
     st.write(f"🔥 Progreso: {int(prog * 100)}%")
     st.progress(prog)
-    st.write(f"Consumido: {int(st.session_state.kcal_total)} / {int(meta_diaria)} kcal")
     
     if st.button("🔄 Reiniciar Día"):
-        st.session_state.kcal_total = 0.0
-        st.session_state.prot = 0.0
-        st.session_state.carb = 0.0
-        st.session_state.gras = 0.0
+        st.session_state.kcal_total = st.session_state.prot = st.session_state.carb = st.session_state.gras = 0.0
         st.rerun()
 
 # --- 6. PANEL PRINCIPAL ---
 st.title(f"📈 Dashboard Nutricional: {u_nom}")
-t1, t2 = st.tabs(["📊 MI PROGRESO", "🍽️ REGISTRAR COMIDA"])
-
-with t1:
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Proteína Total", f"{st.session_state.prot} g")
-    m2.metric("Carbohidratos Total", f"{st.session_state.carb} g")
-    m3.metric("Grasas Total", f"{st.session_state.gras} g")
-    
-    df_macros = pd.DataFrame({
-        'Nutriente': ['Proteína', 'Carbos', 'Grasas'],
-        'Gramos': [st.session_state.prot, st.session_state.carb, st.session_state.gras]
-    })
-    st.plotly_chart(px.pie(df_macros, values='Gramos', names='Nutriente', hole=0.5, template="plotly_dark", 
-                          color_discrete_sequence=['#00FF41', '#FFC107', '#2196
+t1, t2 = st.tabs(["📊 MI PROGRESO", "🍽️
