@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from supabase import create_client, Client
 
-# --- 1. CONFIGURACIÓN E IDENTIDAD (XAVIER 63KG) ---
+# --- 1. NÚCLEO Y ESTILO (RESTAURADO) ---
 st.set_page_config(page_title="Jarvis OS | Xavier", layout="wide", page_icon="🦾")
 
 st.markdown("""
@@ -20,12 +20,12 @@ def init_connection():
     try:
         return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
     except:
-        st.error("🚨 Error de conexión con la Base de Datos.")
+        st.error("🚨 Error de enlace con Base de Datos.")
         st.stop()
 
 supabase = init_connection()
 
-# --- 2. PERFIL Y METAS (INTACTO) ---
+# --- 2. SESIÓN Y PERFIL (63KG) ---
 if 'u_nom' not in st.session_state:
     st.title("🦾 Activación Protocolo Jarvis")
     with st.form("p_ini"):
@@ -39,14 +39,16 @@ if 'u_nom' not in st.session_state:
             st.rerun()
     st.stop()
 
+# --- 3. METAS DE RENDIMIENTO (RESTAURADAS) ---
 hoy = datetime.now()
 ini_s = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
+# Cálculo exacto para Xavier
 meta_k = 3200.0 if st.session_state.u_obj == "Fútbol" else 2750.0
-meta_p = st.session_state.u_pes * 2.2
+meta_p = st.session_state.u_pes * 2.2 # 138.6g para 63kg
 meta_g = (meta_k * 0.25) / 9
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
 
-# --- 3. SIDEBAR (HIDRATACIÓN 3.5L) ---
+# --- 4. SIDEBAR (AGUA, PASOS Y CREADOR) ---
 with st.sidebar:
     st.title(f"👑 {st.session_state.u_nom}")
     st.divider()
@@ -57,25 +59,26 @@ with st.sidebar:
     if ca.button("➕ 0.5L"): st.session_state.h2o += 0.5; st.rerun()
     if cb.button("🧹 Reset"): st.session_state.h2o = 0.0; st.rerun()
     st.divider()
-    pas = st.number_input("👣 Pasos:", 0, 50000, 0, 500)
-    st.metric("Gasto", f"{(pas/1000)*38:.0f} Kcal")
-    if st.text_input("🔐 Creador:", type="password") == "xavier2210":
+    pas = st.number_input("👣 Pasos hoy:", 0, 50000, 0, 500)
+    st.metric("Gasto Estimado", f"{(pas/1000)*38:.0f} Kcal")
+    st.divider()
+    if st.text_input("🔐 Acceso Creador:", type="password") == "xavier2210":
         st.session_state.creador = True
 
-# --- 4. DATA SYNC ---
+# --- 5. SINCRONIZACIÓN DE DATOS ---
 k_act, p_act, g_act, c_act = 0.0, 0.0, 0.0, 0.0
 df_h = pd.DataFrame()
 try:
     res = supabase.table('registros_comida').select('*').eq('semana', ini_s).execute()
     if res.data:
-        df_all = pd.DataFrame(res.data)
-        df_all['f'] = pd.to_datetime(df_all['created_at']).dt.date
-        df_h = df_all[(df_all['usuario'] == st.session_state.u_nom) & (df_all['f'] == hoy.date())]
+        df_a = pd.DataFrame(res.data)
+        df_a['f'] = pd.to_datetime(df_a['created_at']).dt.date
+        df_h = df_a[(df_a['usuario'] == st.session_state.u_nom) & (df_a['f'] == hoy.date())]
         k_act, p_act = df_h['kcal'].sum(), df_h['proteina'].sum()
         g_act, c_act = (k_act * 0.25) / 9, (k_act * 0.50) / 4
 except: pass
 
-# --- 5. DASHBOARD ---
+# --- 6. DASHBOARD PRINCIPAL ---
 st.header("📊 Centro de Mando")
 st.progress(min(k_act / meta_k, 1.0))
 m1, m2, m3, m4 = st.columns(4)
@@ -84,7 +87,7 @@ m2.metric("🍗 Prot", f"{p_act:.1f}/{meta_p:.1f}g")
 m3.metric("🥑 Grasa", f"{g_act:.1f}/{meta_g:.1f}g")
 m4.metric("🍚 Carb", f"{c_act:.0f}/{meta_c:.0f}g")
 
-tabs = st.tabs(["🍽️ REGISTRO", "💪 ANÁLISIS", "📅 HISTORIAL"])
+tabs = st.tabs(["🍽️ REGISTRO", "💪 ANÁLISIS", "📅 HISTORIAL", "🕵️ CREADOR"])
 
 with tabs[0]:
     c1, c2 = st.columns(2)
@@ -92,21 +95,21 @@ with tabs[0]:
         st.subheader("📸 Escáner IA")
         up = st.file_uploader("Foto", type=["jpg","png","jpeg"])
         if up and st.button("🔍 ANALIZAR"):
-            with st.spinner("🤖 Jarvis procesando..."):
+            with st.spinner("🤖 Jarvis analizando..."):
                 try:
                     img_b64 = base64.b64encode(up.read()).decode()
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={st.secrets['GEMINI_API_KEY']}"
-                    payload = {"contents":[{"parts":[{"text":"Responde solo: Comida, Calorias, Proteina"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
+                    payload = {"contents":[{"parts":[{"text":"Nombre, Kcal, Prot. Ejemplo: Manzana, 95, 0.5"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
                     r = requests.post(url, json=payload, timeout=20)
                     if r.status_code == 200:
                         res_txt = r.json()['candidates'][0]['content']['parts'][0]['text']
                         nums = re.findall(r"\d+\.?\d*", res_txt)
                         if len(nums) >= 2:
                             vals = [float(n) for n in nums]
-                            supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":"IA Scan", "kcal":max(vals), "proteina":min(vals), "semana":ini_s}).execute()
+                            nom_v = res_txt.split(',')[0].strip()[:20]
+                            supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":nom_v, "kcal":max(vals), "proteina":min(vals), "semana":ini_s}).execute()
                             st.rerun()
-                    else: st.error("⚠️ Error de API. Revisa tu nueva Key.")
-                except: st.error("⚠️ Error de Conexión.")
+                except: st.error("⚠️ Error de conexión.")
 
     with c2:
         st.subheader("✍️ Registro Manual")
@@ -127,3 +130,10 @@ with tabs[1]:
 
 with tabs[2]:
     if not df_h.empty: st.table(df_h[['comida', 'kcal', 'proteina']])
+
+with tabs[3]:
+    if st.session_state.get('creador', False):
+        try:
+            res_admin = supabase.table('registros_comida').select('*').execute()
+            if res_admin.data: st.dataframe(pd.DataFrame(res_admin.data))
+        except: st.write("Aún no hay datos globales.")
