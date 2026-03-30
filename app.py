@@ -60,8 +60,7 @@ try:
         df_hoy = df_all[df_all['fecha'] == hoy.date()]
         if not df_hoy.empty:
             k_act, p_act = df_hoy['kcal'].sum(), df_hoy['proteina'].sum()
-            c_act = (k_act * 0.5) / 4
-            g_act = (k_act * 0.25) / 9
+            c_act, g_act = (k_act * 0.5) / 4, (k_act * 0.25) / 9
 except: pass
 
 # --- 5. DASHBOARD ---
@@ -69,8 +68,8 @@ st.title(f"📊 Dashboard Nutricional: {st.session_state.u_nom}")
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("🔥 Kcal", f"{k_act:.0f}", f"/{meta_k:.0f}")
 m2.metric("🍗 Prot", f"{p_act:.1f}g", f"/{meta_p:.0f}g")
-m3.metric("🍚 Carb (Est.)", f"{c_act:.1f}g")
-m4.metric("🥑 Gras (Est.)", f"{g_act:.1f}g")
+m3.metric("🍚 Carb", f"{c_act:.1f}g")
+m4.metric("🥑 Gras", f"{g_act:.1f}g")
 
 t1, t2, t3 = st.tabs(["🍽️ REGISTRO", "📈 ANÁLISIS", "📅 DIARIO Y HORARIO"])
 
@@ -83,31 +82,4 @@ with t1:
             with st.spinner("🤖 Jarvis analizando..."):
                 try:
                     img_b64 = base64.b64encode(foto.read()).decode()
-                    payload = {"contents":[{"parts":[{"text":"Nombre|Kcal|Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
-                    r = requests.post(URL_AI, json=payload).json()
-                    txt_ia = r['candidates'][0]['content']['parts'][0]['text'].strip()
-                    partes = txt_ia.split('|')
-                    if len(partes) >= 3:
-                        kv = float(re.findall(r"\d+", partes[1])[0])
-                        pv = float(re.findall(r"\d+", partes[2])[0])
-                        supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":partes[0].strip(), "kcal":kv, "proteina":pv, "semana":inicio_sem}).execute()
-                        st.rerun()
-                except: st.error("Error IA.")
-    with col_b:
-        st.subheader("✍️ Manual")
-        with st.form("m_entry"):
-            cm = st.text_input("Comida")
-            pm = st.number_input("Prot (g)", 0.0)
-            km = st.number_input("Kcal", 0.0)
-            if st.form_submit_button("💾 GUARDAR"):
-                supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":cm, "kcal":km, "proteina":pm, "semana":inicio_sem}).execute()
-                st.rerun()
-
-with t2:
-    st.subheader("🥧 Distribución de Macronutrientes")
-    if k_act > 0:
-        fig = px.pie(values=[p_act*4, c_act*4, g_act*9], names=['Prot', 'Carb', 'Gras'], hole=0.5, template="plotly_dark")
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        # CORRECCIÓN LÍNEA 120 (Cerrada correctamente):
-        st.warning("⚠️ No hay datos registrados para mostrar el análisis hoy
+                    payload = {"contents":[{"parts":[{"text":"Nombre|Kcal|Prot"},{"
