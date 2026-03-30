@@ -11,7 +11,7 @@ st.set_page_config(page_title="FitIA Pro", layout="centered")
 if 'paso' not in st.session_state:
     st.session_state.paso = 1
 
-# --- PANTALLA DE INICIO (Pasos 1-4 resumidos) ---
+# --- PANTALLA DE INICIO ---
 if st.session_state.paso == 1:
     st.markdown("# 🥗 Configuración FitIA")
     st.info("Perfil: 170cm | 63kg | Ganar Masa Muscular")
@@ -23,7 +23,7 @@ if st.session_state.paso == 1:
 elif st.session_state.paso == 5:
     st.markdown("# Resumen Diario")
     
-    # Macros para tus 63kg (Enfoque Hypertrophy)
+    # Macros optimizados para tus 63kg (Portoviejo Team!)
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Calorías", "2450")
     c2.metric("Proteína", "138g")
@@ -38,9 +38,11 @@ elif st.session_state.paso == 5:
         st.image(img_bytes, use_container_width=True)
         
         if st.button("🔍 Analizar Plato"):
-            with st.spinner("🤖 Consultando a Google..."):
+            with st.spinner("🤖 Jarvis conectando a la versión estable..."):
                 try:
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+                    # CAMBIO CLAVE: Usamos /v1/ en lugar de /v1beta/
+                    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+                    
                     b64_img = base64.b64encode(img_bytes).decode('utf-8')
                     
                     payload = {
@@ -59,7 +61,7 @@ elif st.session_state.paso == 5:
                         res = data['candidates'][0]['content']['parts'][0]['text']
                         st.success(f"Detección: {res}")
                     else:
-                        st.error("Error de Google:")
+                        st.error("Error de respuesta:")
                         st.json(data)
                 except Exception as e:
                     st.error(f"Error técnico: {e}")
