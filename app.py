@@ -14,14 +14,14 @@ try:
     URL_AI = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={G_KEY}"
     supabase: Client = create_client(S_URL, S_KEY)
 except:
-    st.error("⚠️ Revisa los Secrets en Streamlit.")
+    st.error("⚠️ Revisa los Secrets en Streamlit Cloud.")
     st.stop()
 
 # --- 2. SESSION STATE ---
 for k in ['k_t', 'p_t', 'c_t', 'g_t']:
     if k not in st.session_state: st.session_state[k] = 0.0
 
-# --- 3. SIDEBAR (DATOS USUARIO NUEVO) ---
+# --- 3. SIDEBAR (PERFIL XAVIER / USUARIO NUEVO) ---
 with st.sidebar:
     st.title("🦾 PERFIL JARVIS")
     u_nom = st.text_input("Nombre:", "Xavier")
@@ -58,26 +58,35 @@ with t2:
     with col_f:
         st.subheader("📸 Foto IA")
         foto = st.file_uploader("Sube plato", type=["jpg","png","jpeg"])
-        if foto and st.button("🔍 ANALIZAR"):
-            with st.spinner("🤖 Analizando..."):
-                img = base64.b64encode(foto.read()).decode()
-                prompt = f"Usuario: {u_pes}kg, {u_alt}cm. Responde: Nombre|Kcal|Prot|Carb|Gras"
-                pld = {"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":"image/jpeg","data":img}}]}]}
+        if foto and st.button("🔍 ANALIZAR PLATO"):
+            with st.spinner("🤖 Jarvis analizando..."):
                 try:
+                    img_b64 = base64.b64encode(foto.read()).decode()
+                    prompt = f"Usuario {u_pes}kg, {u_alt}cm. Analiza foto y responde SOLO: Nombre|Kcal|Prot|Carb|Gras"
+                    pld = {"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
                     r = requests.post(URL_AI, json=pld).json()
+                    
+                    # Extracción segura de texto
                     raw = r['candidates'][0]['content']['parts'][0]['text'].strip()
-                    d = raw.replace(' ','').replace('g','').replace('kcal','').split('|')
-                    res_c = {"n":d[0], "k":float(d[1]), "p":float(d[2]), "c":float(d[3]), "g":float(d[4])}
-                except: st.error("❌ Error IA")
+                    # Limpiamos todo lo que no sea número o barras
+                    clean = raw.replace(' ','').replace('g','').replace('kcal','').replace('*','')
+                    parts = clean.split('|')
+                    
+                    if len(parts) >= 5:
+                        res_c = {"n":parts[0], "k":float(parts[1]), "p":float(parts[2]), "c":float(parts[3]), "g":float(parts[4])}
+                    else:
+                        st.error(f"⚠️ Formato IA incorrecto. Recibido: {raw}")
+                except Exception as e:
+                    st.error(f"❌ Error de Conexión: {e}")
 
     with col_m:
-        st.subheader("✍️ Manual")
+        st.subheader("✍️ Registro Manual")
         with st.form("f_man"):
-            n_m = st.text_input("Plato")
+            n_m = st.text_input("Nombre del Plato")
             k_m = st.number_input("Kcal", 0.0)
-            p_m = st.number_input("Prot", 0.0)
-            c_m = st.number_input("Carb", 0.0)
-            g_m = st.number_input("Gras", 0.0)
+            p_m = st.number_input("Proteína (g)", 0.0)
+            c_m = st.number_input("Carbos (g)", 0.0)
+            g_m = st.number_input("Grasas (g)", 0.0)
             if st.form_submit_button("💾 GUARDAR"):
                 if n_m: res_c = {"n":n_m, "k":k_m, "p":p_m, "c":c_m, "g":g_m}
 
@@ -93,12 +102,11 @@ with t2:
             }).execute()
         except: pass
         
-        # Pizarra corregida (Línea 115-125 segura)
-        st.success(f"Registrado: {res_c['n']}")
+        st.success(f"✅ ¡{res_c['n']} registrado!")
         st.markdown(f"""
-        <div style="background:#1a1a1a; border:2px solid #59402a; border-radius:10px; padding:15px; color:white; font-family:monospace;">
-            <div style="text-align:center; font-weight:bold; color:#00FF41;">{res_c['n'].upper()}</div>
-            <div style="display:flex; justify-content:space-around; margin-top:10px; text-align:center;">
+        <div style="background:#1a1a1a; border:2px solid #59402a; border-radius:10px; padding:15px; color:white; font-family:monospace; text-align:center;">
+            <div style="font-weight:bold; color:#00FF41; margin-bottom:10px;">{res_c['n'].upper()}</div>
+            <div style="display:flex; justify-content:space-around;">
                 <div>🔥<br>{res_c['k']}<br>Kcal</div>
                 <div>🍗<br>{res_c['p']}g<br>Prot</div>
                 <div>🍚<br>{res_c['c']}g<br>Carb</div>
