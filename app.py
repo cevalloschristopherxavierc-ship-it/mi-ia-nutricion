@@ -37,19 +37,19 @@ inicio_sem = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 if 'h2o' not in st.session_state: st.session_state.h2o = 0.0
 if 'steps' not in st.session_state: st.session_state.steps = 0
 
-# Cálculos para Xavier (63kg)
-meta_k = 3200.0 if st.session_state.u_obj == "Fútbol" else 2750.0
+# CORRECCIÓN LÍNEA 41: Blindaje contra AttributeError
+objetivo_actual = st.session_state.get('u_obj', "Hipertrofia")
+meta_k = 3200.0 if objetivo_actual == "Fútbol" else 2750.0
 meta_p = st.session_state.u_pes * 2.2 
 meta_g = st.session_state.u_pes * 0.9 
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
-meta_agua = (st.session_state.u_pes * 35 / 1000) + (1.2 if st.session_state.u_obj == "Fútbol" else 0.6)
+meta_agua = (st.session_state.u_pes * 35 / 1000) + (1.2 if objetivo_actual == "Fútbol" else 0.6)
 
 # --- 4. SIDEBAR (METAS Y VIGILANCIA) ---
 with st.sidebar:
     st.title(f"👑 Maestro: {st.session_state.u_nom}")
     st.divider()
     
-    # Barra de Agua (Línea 56 Corregida)
     st.subheader("💧 Hidratación")
     prog_agua = min(st.session_state.h2o / meta_agua, 1.0)
     st.progress(prog_agua)
@@ -67,8 +67,39 @@ with st.sidebar:
     st.subheader("🕵️ Panel Maestro")
     target = st.text_input("Vigilar Discípulo:", placeholder="Nombre")
     btn_vigilar = st.button("👁️ Rastrear")
+    
+    if st.button("🔄 Reiniciar App"):
+        st.session_state.clear()
+        st.rerun()
 
 # --- 5. DASHBOARD PERSONAL ---
 st.title(f"📊 Dashboard: {st.session_state.u_nom}")
 
-# Obtener
+# Obtener datos reales
+p_act, k_act = 0.0, 0.0
+try:
+    res = supabase.table('registros_comida').select('*').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
+    if res.data:
+        df = pd.DataFrame(res.data)
+        df['f'] = pd.to_datetime(df['created_at']).dt.date
+        hoy_df = df[df['f'] == hoy.date()]
+        k_act, p_act = hoy_df['kcal'].sum(), hoy_df['proteina'].sum()
+except: pass
+
+# Bonus Motivador
+if p_act >= meta_p and st.session_state.steps >= 8000:
+    st.balloons()
+    st.success("🔥 ¡Es hora de ponerte mamado y fuerte! 🔥")
+
+# Métricas
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Calorías", f"{k_act:.0f}", f"/{meta_k:.0f}")
+c2.metric("Proteína", f"{p_act:.1f}g", f"/{meta_p:.0f}g")
+c3.metric("Agua", f"{st.session_state.h2o:.1f}L", f"/{meta_agua:.1f}L")
+c4.metric("Pasos", f"{st.session_state.steps}", "/8000")
+
+t1, t2 = st.tabs(["📈 ANÁLISIS", "🍽️ REGISTRO"])
+
+with t1:
+    if k_act > 0:
+        fig = px.
