@@ -64,7 +64,6 @@ with st.sidebar:
         st.session_state.h2o += 0.5
         st.rerun()
 
-    # CORRECCIÓN LÍNEA 76 (SyntaxError corregido aquí)
     if st.session_state.u_nom.lower() == "xavier":
         st.divider()
         st.subheader("🕵️ Panel Maestro")
@@ -72,10 +71,6 @@ with st.sidebar:
         btn_vigilar = st.button("👁️ Rastrear")
     else:
         btn_vigilar = False
-
-    if st.button("🔄 Reiniciar"):
-        st.session_state.clear()
-        st.rerun()
 
 # --- 5. DASHBOARD PRINCIPAL ---
 st.title(f"📊 Dashboard Nutricional")
@@ -107,19 +102,7 @@ with cm4:
     st.write(f"🥑 Gras: {g_act:.1f}/{meta_g:.0f}g")
     st.progress(min(g_act/meta_g, 1.0))
 
-st.divider()
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Consumido", f"{k_act:.0f}")
-m2.metric("Gasto Pasos", f"{kcal_pasos:.0f}")
-m3.metric("Balance", f"{(k_act - kcal_pasos):.0f}")
-m4.metric("Falta Prot", f"{max(meta_p - p_act, 0.0):.1f}g")
-
 t1, t2 = st.tabs(["📈 ANÁLISIS", "🍽️ REGISTRO"])
-
-with t1:
-    if k_act > 0:
-        fig = px.pie(values=[p_act*4, c_act*4, g_act*9], names=['Prot', 'Carb', 'Gras'], hole=0.4, template="plotly_dark")
-        st.plotly_chart(fig, use_container_width=True)
 
 with t2:
     col_a, col_b = st.columns(2)
@@ -130,19 +113,34 @@ with t2:
             with st.spinner("🤖 Analizando..."):
                 try:
                     img_data = base64.b64encode(foto.read()).decode()
-                    prompt = "Responde SOLO: Nombre|Kcal|Proteina"
+                    # PROMPT REFORZADO:
+                    prompt = "Analiza la imagen. Responde SOLO con el formato: Nombre|Calorias|Proteina. Ejemplo: Arroz con pollo|450|25"
                     payload = {"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":"image/jpeg","data":img_data}}]}]}
                     r = requests.post(URL_AI, json=payload).json()
-                    if 'candidates' in r:
+                    
+                    if 'candidates' in r and r['candidates']:
                         res_raw = r['candidates'][0]['content']['parts'][0]['text'].strip()
-                        data = res_raw.split('|')
-                        if len(data) >= 3:
-                            k_v = float(re.sub(r'[^\d.]', '', data[1]))
-                            p_v = float(re.sub(r'[^\d.]', '', data[2]))
-                            supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":data[0], "kcal":k_v, "proteina":p_v, "semana":inicio_sem}).execute()
+                        # LIMPIEZA AGRESIVA:
+                        partes = res_raw.split('|')
+                        if len(partes) >= 3:
+                            nom_c = partes[0].strip()
+                            # Extrae solo números (ignora 'kcal', 'g', '*', etc.)
+                            k_v = float(re.findall(r"[-+]?\d*\.\d+|\d+", partes[1])[0])
+                            p_v = float(re.findall(r"[-+]?\d*\.\d+|\d+", partes[2])[0])
+                            
+                            supabase.table('registros_comida').insert({
+                                "usuario": st.session_state.u_nom, 
+                                "comida": nom_c, 
+                                "kcal": k_v, 
+                                "proteina": p_v, 
+                                "semana": inicio_sem
+                            }).execute()
+                            st.success(f"✅ Guardado: {nom_c}")
                             st.rerun()
-                except: st.error("Error IA.")
-
+                    else:
+                        st.error("IA no respondió. Intenta de nuevo.")
+                except Exception as e:
+                    st.error(f"Error técnico: {str(e)[:40]}")
     with col_b:
         st.subheader("✍️ Manual")
         with st.form("manual_reg"):
