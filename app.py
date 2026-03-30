@@ -1,44 +1,50 @@
 import streamlit as st
-import requests
-import base64
+import google.generativeai as genai
+from PIL import Image
 
-# Configuración
+# 1. Configuración de API
 API_KEY = st.secrets.get("GEMINI_API_KEY")
+if API_KEY:
+    genai.configure(api_key=API_KEY)
+else:
+    st.error("Falta API Key en Secrets.")
+    st.stop()
 
 st.set_page_config(page_title="FitIA Pro", layout="centered")
-st.markdown("# 🥗 FitIA: Escáner")
 
-f = st.file_uploader("📸 Sube la foto de tu plato", type=["jpg", "jpeg", "png"])
+# --- INTERFAZ ---
+st.markdown("# 🥗 FitIA: Escáner 63kg")
+st.info("Objetivo: Ganar masa muscular")
+
+f = st.file_uploader("📸 Sube la foto de tu comida", type=["jpg", "jpeg", "png"])
 
 if f:
-    img_bytes = f.read()
-    st.image(img_bytes, use_container_width=True)
+    img = Image.open(f)
+    st.image(img, use_container_width=True)
     
     if st.button("🔍 Analizar Plato"):
-        with st.spinner("🤖 Jarvis conectando..."):
-            try:
-                # Ruta estable v1
-                url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
-                
-                b64_img = base64.b64encode(img_bytes).decode('utf-8')
-                
-                payload = {
-                    "contents": [{
-                        "parts": [
-                            {"text": "Responde solo: Nombre|Kcal|Prot|Carb|Gras"},
-                            {"inline_data": {"mime_type": "image/jpeg", "data": b64_img}}
-                        ]
-                    }]
-                }
-                
-                r = requests.post(url, json=payload)
-                data = r.json()
-                
-                if 'candidates' in data:
-                    res = data['candidates'][0]['content']['parts'][0]['text']
-                    st.success(f"🍴 Resultado: {res}")
-                else:
-                    st.error("Error de Google (Ver detalle):")
-                    st.json(data)
-            except Exception as e:
-                st.error(f"Error: {e}")
+        with st.spinner("🤖 Jarvis probando conexión segura..."):
+            # Intentamos primero con Flash, si falla, saltamos a Pro
+            modelos = ["gemini-1.5-flash", "gemini-1.5-pro"]
+            exito = False
+            
+            for m_name in modelos:
+                try:
+                    model = genai.GenerativeModel(m_name)
+                    prompt = "Responde solo: Nombre|Kcal|Prot|Carb|Gras. Ejemplo: Pollo|500|40|50|10"
+                    response = model.generate_content([prompt, img])
+                    
+                    if response.text:
+                        st.success(f"✅ ¡Conectado con {m_name}!")
+                        st.write(f"Detección: {response.text}")
+                        exito = True
+                        break
+                except Exception:
+                    continue
+            
+            if not exito:
+                st.error("❌ Google sigue bloqueando la conexión.")
+                st.info("Asegúrate de haber creado la clave en un 'NUEVO PROYECTO' en AI Studio.")
+
+if st.button("🔄 Reiniciar App"):
+    st.rerun()
