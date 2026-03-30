@@ -68,7 +68,7 @@ with st.sidebar:
     cod = st.text_input("Código Maestro:", type="password")
     st.session_state.creador = (cod == "xavier2210")
 
-# --- 5. DATA ---
+# --- 5. OBTENCIÓN DE DATA ---
 p_act, k_act = 0.0, 0.0
 df_hoy, df_all = pd.DataFrame(), pd.DataFrame()
 try:
@@ -94,35 +94,13 @@ with t1:
     with col_a:
         st.subheader("📸 Foto IA")
         foto = st.file_uploader("Sube plato", type=["jpg","png","jpeg"])
-        if foto and st.button("🔍 ANALIZAR CON JARVIS"):
+        if foto and st.button("🔍 ANALIZAR"):
             with st.spinner("🤖 Analizando..."):
                 try:
                     img_b64 = base64.b64encode(foto.read()).decode()
-                    payload = {
-                        "contents": [{
-                            "parts": [
-                                {"text": "Nombre|Kcal|Prot"},
-                                {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
-                            ]
-                        }]
-                    }
+                    payload = {"contents": [{"parts": [{"text": "Nombre|Kcal|Prot"},{"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}]}]}
                     r = requests.post(URL_AI, json=payload, timeout=15).json()
                     txt = r['candidates'][0]['content']['parts'][0]['text'].strip()
                     pts = txt.split('|')
                     if len(pts) >= 3:
-                        kv = float(re.findall(r"\d+", pts[1])[0])
-                        pv = float(re.findall(r"\d+", pts[2])[0])
-                        supabase.table('registros_comida').insert({
-                            "usuario": st.session_state.u_nom,
-                            "comida": pts[0].strip(),
-                            "kcal": kv,
-                            "proteina": pv,
-                            "semana": inicio_sem
-                        }).execute()
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"Error IA: {e}")
-    
-    with col_b:
-        st.subheader("✍️ Registro Manual")
-        with st.form("
+                        kv
