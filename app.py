@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import base64
 import pandas as pd
+import plotly.express as px  # <-- ESTA LÍNEA ES LA QUE FALTABA
 from datetime import datetime
 from supabase import create_client, Client
 
@@ -13,40 +14,36 @@ try:
     G_KEY = st.secrets["GEMINI_API_KEY"]
     URL_AI = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={G_KEY}"
     supabase: Client = create_client(S_URL, S_KEY)
-except:
-    st.error("⚠️ Revisa los Secrets en Streamlit Cloud.")
+except Exception as e:
+    st.error(f"⚠️ Revisa los Secrets: {e}")
     st.stop()
 
-# --- 2. SESSION STATE (MEMORIA) ---
+# --- 2. SESSION STATE ---
 for k in ['k_t', 'p_t', 'c_t', 'g_t']:
     if k not in st.session_state: st.session_state[k] = 0.0
 
-# --- 3. SIDEBAR: SELECTOR DE ENTRENAMIENTO & PERFIL ---
+# --- 3. SIDEBAR: SELECTOR & HIDRATACIÓN ---
 with st.sidebar:
     st.title("🦾 NÚCLEO DE JARVIS")
     u_nom = "Xavier"
     u_pes = 63.0
     
-    # --- IDEA 3: SELECTOR DE ENTRENAMIENTO ---
-    modo = st.radio("¿Qué toca hoy?", ["Gym (Hipertrofia)", "Fútbol (Partido 2h)"])
+    modo = st.radio("¿Qué toca hoy?", ["Gym (Pierna/Glúteo)", "Fútbol (Partido 2h)"])
     
     if modo == "Fútbol (Partido 2h)":
-        meta_k = 3000.0 # Subimos 500kcal por el desgaste en Portoviejo
-        st.warning("⚽ Modo Fútbol: Meta subida a 3000 kcal.")
+        meta_k = 3000.0
+        st.warning("⚽ Modo Fútbol: Meta 3000 kcal.")
     else:
         meta_k = 2500.0
     
     st.divider()
     
-    # --- IDEA 1: CALCULADORA DE HIDRATACIÓN ---
-    # Fórmula: 35ml por kg + 1 litro extra por deporte intenso
-    agua_base = (u_pes * 35) / 1000 
-    agua_total = agua_base + 1.0 if modo == "Fútbol (Partido 2h)" else agua_base + 0.5
-    
+    # Calculadora de Agua (35ml x kg)
+    agua_total = ((u_pes * 35) / 1000) + (1.0 if modo == "Fútbol (Partido 2h)" else 0.5)
     st.subheader("💧 Hidratación")
-    st.info(f"Debes tomar: **{agua_total:.2f} Litros**")
+    st.info(f"Objetivo: **{agua_total:.2f} Litros**")
     if modo == "Fútbol (Partido 2h)":
-        st.error("🔥 ALERTA MANABÍ: El sol está fuerte. Toma 1 vaso cada 20 min en el partido.")
+        st.error("🔥 ALERTA MANABÍ: Toma agua constante en el partido.")
 
     st.divider()
     prog = min(st.session_state.k_t / meta_k, 1.0)
@@ -54,12 +51,12 @@ with st.sidebar:
     st.progress(prog)
 
 # --- 4. DASHBOARD & ALERTAS ---
-st.title(f"📈 Dashboard Nutricional")
+st.title(f"📈 Dashboard: {u_nom}")
 
-# --- IDEA 2: ALARMA DE PROTEÍNA INTELIGENTE ---
+# Alarma de Proteína (Después de las 4 PM)
 hora_actual = datetime.now().hour
 if hora_actual >= 16 and st.session_state.p_t < 60:
-    st.warning(f"🚨 ¡XAVIER! Son más de las 4 PM y solo llevas {st.session_state.p_t:.1f}g de proteína. ¡Cómete un huevo o un batido ahora!")
+    st.warning(f"🚨 ¡XAVIER! Llevas poca proteína ({st.session_state.p_t:.1f}g). ¡Dale al huevo o batido!")
 
 t1, t2 = st.tabs(["📊 ESTADÍSTICAS", "🍽️ REGISTRAR"])
 
@@ -69,8 +66,10 @@ with t1:
     c2.metric("Carbos", f"{st.session_state.c_t:.1f}g")
     c3.metric("Grasas", f"{st.session_state.g_t:.1f}g")
     
+    # Gráfica corregida
     df = pd.DataFrame({'M':['Prot','Carb','Gras'], 'G':[st.session_state.p_t, st.session_state.c_t, st.session_state.g_t]})
-    st.plotly_chart(px.pie(df, values='G', names='M', hole=0.5, template="plotly_dark"), use_container_width=True)
+    fig = px.pie(df, values='G', names='M', hole=0.5, template="plotly_dark", color_discrete_sequence=['#00FF41','#FFC107','#2196F3'])
+    st.plotly_chart(fig, use_container_width=True)
 
 with t2:
     col_f, col_m = st.columns(2)
@@ -79,14 +78,14 @@ with t2:
         st.subheader("📸 Foto IA")
         foto = st.file_uploader("Sube plato", type=["jpg","png","jpeg"])
         if foto and st.button("🔍 ANALIZAR"):
-            with st.spinner("🤖 Analizando..."):
+            with st.spinner("🤖 Jarvis analizando..."):
                 try:
                     img = base64.b64encode(foto.read()).decode()
                     prompt = f"Responde SOLO: Nombre|Kcal|Prot|Carb|Gras"
                     pld = {"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":"image/jpeg","data":img}}]}]}
                     r = requests.post(URL_AI, json=pld).json()
                     raw = r['candidates'][0]['content']['parts'][0]['text'].strip()
-                    d = raw.replace(' ','').replace('g','').replace('kcal','').split('|')
+                    d = raw.replace(' ','').replace('g','').replace('kcal','').replace('*','').split('|')
                     res_c = {"n":d[0], "k":float(d[1]), "p":float(d[2]), "c":float(d[3]), "g":float(d[4])}
                 except: st.error("❌ Error IA")
 
@@ -104,18 +103,3 @@ with t2:
     if res_c:
         st.session_state.k_t += res_c['k']
         st.session_state.p_t += res_c['p']
-        st.session_state.c_t += res_c['c']
-        st.session_state.g_t += res_c['g']
-        try:
-            supabase.table('registros_comida').insert({"usuario": u_nom, "comida": res_c['n'], "kcal": res_c['k'], "proteina": res_c['p'], "carbos": res_c['c'], "grasas": res_c['g']}).execute()
-            st.success("✅ Guardado")
-            st.rerun()
-        except: st.error("❌ Error al guardar")
-
-# --- HISTORIAL ---
-st.divider()
-try:
-    hist = supabase.table('registros_comida').select('*').order('created_at', desc=True).limit(5).execute()
-    for r in hist.data:
-        st.write(f"🍴 **{r['comida']}**: {r['kcal']}kcal | P:{r['proteina']}g C:{r['carbos']}g G:{r['grasas']}g")
-except: pass
