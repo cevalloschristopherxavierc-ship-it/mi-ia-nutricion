@@ -7,14 +7,6 @@ from supabase import create_client, Client
 # --- 1. ADN JARVIS (DETALLES XAVIER 63KG) ---
 st.set_page_config(page_title="Jarvis OS | Xavier", layout="wide", page_icon="🦾")
 
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; }
-    div[data-testid="stMetric"] { background-color: #1f2937; padding: 15px; border-radius: 10px; border: 1px solid #374151; }
-    .stProgress > div > div > div > div { background-color: #4facfe; }
-    </style>
-    """, unsafe_allow_html=True)
-
 @st.cache_resource
 def init_connection():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
@@ -26,13 +18,12 @@ if 'u_nom' not in st.session_state:
     st.session_state.u_nom, st.session_state.u_pes, st.session_state.u_obj = "Xavier", 63.0, "Fútbol"
     st.session_state.h2o = 0.0
 
-# Metas Exactas (Proteína 138.6g)
 meta_k = 3200.0 if st.session_state.u_obj == "Fútbol" else 2800.0
-meta_p = 138.6 
+meta_p = 138.6 # Tu meta de proteína para 63kg
 meta_g = (meta_k * 0.25) / 9
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
 
-# --- 3. SIDEBAR (HIDRATACIÓN 3.5L, PASOS Y CREADOR) ---
+# --- 3. SIDEBAR (HIDRATACIÓN 3.5L Y PASOS) ---
 with st.sidebar:
     st.title(f"👑 {st.session_state.u_nom}")
     st.divider()
@@ -46,7 +37,7 @@ with st.sidebar:
     if st.text_input("🔐 Creador:", type="password") == "xavier2210":
         st.session_state.creador = True
 
-# --- 4. DATA SYNC (SUPABASE) ---
+# --- 4. DATA SYNC ---
 k_act, p_act = 0.0, 0.0
 hoy_str = datetime.now().strftime('%Y-%m-%d')
 try:
@@ -69,25 +60,31 @@ tabs = st.tabs(["🍽️ REGISTRO FOTO", "💪 ANÁLISIS", "🕵️ CREADOR"])
 with tabs[0]:
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("📸 Escáner IA (Proyecto Nuevo)")
+        st.subheader("📸 Escáner IA (Protocolo Anti-404)")
         up = st.file_uploader("Sube tu plato", type=["jpg","png","jpeg"])
         if up and st.button("🔍 ANALIZAR"):
-            with st.spinner("🤖 Jarvis sincronizando con la nueva Key..."):
-                try:
-                    img_64 = base64.b64encode(up.read()).decode()
-                    key = st.secrets["GEMINI_API_KEY"]
-                    # RUTA ESTABLE PARA PROYECTOS NUEVOS
-                    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={key}"
-                    payload = {"contents":[{"parts":[{"text":"Solo responde: Comida, Kcal, Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img_64}}]}]}
-                    r = requests.post(url, json=payload, timeout=30)
+            with st.spinner("🤖 Jarvis buscando modelo disponible..."):
+                img_64 = base64.b64encode(up.read()).decode()
+                key = st.secrets["GEMINI_API_KEY"]
+                # INTENTAR VARIAS RUTAS SI UNA DA 404
+                rutas = [
+                    "v1beta/models/gemini-1.5-flash",
+                    "v1/models/gemini-1.5-flash",
+                    "v1beta/models/gemini-pro-vision"
+                ]
+                exito = False
+                for r_path in rutas:
+                    url = f"https://generativelanguage.googleapis.com/{r_path}:generateContent?key={key}"
+                    payload = {"contents":[{"parts":[{"text":"Responde solo: Comida, Kcal, Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img_64}}]}]}
+                    r = requests.post(url, json=payload, timeout=20)
                     if r.status_code == 200:
                         txt = r.json()['candidates'][0]['content']['parts'][0]['text']
                         nums = re.findall(r"\d+", txt)
                         if len(nums) >= 2:
                             supabase.table('registros_comida').insert({"usuario":"Xavier","comida":"IA_Scan","kcal":float(nums[0]),"proteina":float(nums[1]),"semana":hoy_str}).execute()
-                            st.rerun()
-                    else: st.error(f"Error {r.status_code}. Google dice: {r.text[:100]}")
-                except: st.error("Fallo de red.")
+                            exito = True; break
+                if exito: st.success("✅ ¡Conectado!"); st.rerun()
+                else: st.error("❌ Google sigue bloqueando la conexión. Prueba el Manual mientras Jarvis se calibra.")
     with c2:
         st.subheader("✍️ Registro Manual")
         with st.form("f_man", clear_on_submit=True):
@@ -103,11 +100,3 @@ with tabs[1]:
         fig = go.Figure(go.Scatterpolar(r=[p_act/meta_p, k_act/meta_k, 0.8, 0.7], theta=['Prot', 'Kcal', 'Carb', 'Grasa'], fill='toself', line_color='#4facfe'))
         fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1.2])), template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
-
-with tabs[2]:
-    if st.session_state.get('creador', False):
-        st.subheader("🕵️ Base de Datos Global")
-        try:
-            res_all = supabase.table('registros_comida').select('*').execute()
-            if res_all.data: st.dataframe(pd.DataFrame(res_all.data))
-        except: st.write("Error en DB.")
