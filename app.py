@@ -71,8 +71,9 @@ with st.sidebar:
 # --- 5. DASHBOARD ---
 st.title(f"📊 Dashboard Nutricional: {st.session_state.u_nom}")
 
-# Lógica de Alarma de Proteína
+# Lógica de Alarma de Proteína (Corregida la indentación)
 p_actual = 0.0 
 try:
     res_c = supabase.table('registros_comida').select('proteina').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
     if res_c.data:
+        p_actual = sum(float(r['prote
