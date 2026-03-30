@@ -7,7 +7,7 @@ API_KEY = st.secrets.get("GEMINI_API_KEY")
 
 st.set_page_config(page_title="FitIA Pro", layout="centered", page_icon="🥗")
 
-# Estilo visual rápido
+# Estilo visual de la App
 st.markdown("# 🥗 Jarvis Nutrición Pro")
 st.info("📍 Portoviejo | 👤 170cm | ⚖️ 63kg")
 
@@ -16,13 +16,13 @@ f = st.file_uploader("📸 Sube la foto de tu plato", type=["jpg", "jpeg", "png"
 
 if f:
     img_bytes = f.read()
-    st.image(img_bytes, use_container_width=True, caption="Tu plato listo para analizar")
+    st.image(img_bytes, use_container_width=True, caption="Plato listo para análisis")
     
     if st.button("🔍 ANALIZAR MACROS"):
-        with st.spinner("🤖 Jarvis conectando al motor Flash-Lite..."):
+        with st.spinner("🤖 Jarvis activando motor 1.5-Flash-8B..."):
             try:
-                # Usamos gemini-2.0-flash-lite (El más rápido de tu lista)
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key={API_KEY}"
+                # Usamos el modelo 1.5-flash-8b (El más estable de tu lista)
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key={API_KEY}"
                 
                 b64_img = base64.b64encode(img_bytes).decode('utf-8')
                 
@@ -35,7 +35,7 @@ if f:
                     }]
                 }
                 
-                # Petición al servidor
+                # Petición directa
                 r = requests.post(url, json=payload)
                 data = r.json()
                 
@@ -44,28 +44,29 @@ if f:
                     stats = texto.split('|')
                     
                     if len(stats) >= 5:
-                        st.balloons() # ¡Celebración si funciona!
+                        st.balloons() # ¡Celebración!
                         st.success(f"🍴 Plato detectado: **{stats[0]}**")
                         
-                        # Mostrar métricas profesionales
+                        # Columnas para los Macros
                         c1, c2, c3, c4 = st.columns(4)
-                        c1.metric("🔥 Calorías", f"{stats[1]} kcal")
-                        c2.metric("🍗 Proteína", f"{stats[2]}g")
-                        c3.metric("🍚 Carbos", f"{stats[3]}g")
-                        c4.metric("🥑 Grasas", f"{stats[4]}g")
+                        c1.metric("🔥 Kcal", stats[1])
+                        c2.metric("🍗 Prot", f"{stats[2]}g")
+                        c3.metric("🍚 Carb", f"{stats[3]}g")
+                        c4.metric("🥑 Gras", f"{stats[4]}g")
                         
-                        st.caption("Nota: Valores estimados por IA para apoyo nutricional.")
+                        st.divider()
+                        st.caption(" Jarvis está listo para ayudarte con tu hipertrofia.")
                     else:
                         st.warning(f"Respuesta inesperada: {texto}")
                 
                 elif 'error' in data:
                     if data['error']['code'] == 429:
-                        st.warning("⏳ Casi listo... Google está terminando de activar tu cuota. Espera 15 segundos y presiona el botón de nuevo.")
+                        st.warning("⏳ Google sigue procesando tu nueva cuota. Espera 30 segundos exactos y dale al botón de nuevo.")
                     else:
                         st.error(f"Error {data['error']['code']}: {data['error']['message']}")
                 
             except Exception as e:
                 st.error(f"Error de conexión: {e}")
 
-if st.button("🔄 Reiniciar Escáner"):
+if st.button("🔄 Reiniciar"):
     st.rerun()
