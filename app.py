@@ -15,7 +15,7 @@ try:
     URL_AI = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={G_KEY}"
     supabase: Client = create_client(S_URL, S_KEY)
 except Exception:
-    st.error("⚠️ Configura los Secrets en Streamlit Cloud.")
+    st.error("⚠️ Error en Secrets. Revisa Streamlit Cloud.")
     st.stop()
 
 # --- 2. PERFIL DE USUARIO ---
@@ -81,4 +81,78 @@ with t1:
             df_hist['f_dt'] = pd.to_datetime(df_hist['created_at']).dt.date
             hoy_data = df_hist[df_hist['f_dt'] == hoy.date()]
             
-            k_h, p_h, c_h, g_h = hoy_data['kcal'].sum(), hoy_data['proteina'].sum(), hoy_data['carbos'].sum(), hoy_data['grasas'].sum
+            # Cálculo de totales de hoy
+            k_h = hoy_data['kcal'].sum()
+            p_h = hoy_data['proteina'].sum()
+            c_h = hoy_data['carbos'].sum()
+            g_h = hoy_data['grasas'].sum()
+            
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Calorías", f"{k_h:.0f}", f"Meta: {meta_k:.0f}")
+            c2.metric("Proteína", f"{p_h:.1f}g", f"Meta: {meta_p:.0f}g")
+            c3.metric("Carbos", f"{c_h:.1f}g", f"Meta: {meta_c:.0f}g")
+            c4.metric("Grasas", f"{g_h:.1f}g", f"Meta: {meta_g:.0f}g")
+            
+            st.progress(min(float(k_h/meta_k), 1.0) if meta_k > 0 else 0.0)
+            
+            if k_h > 0:
+                fig = px.pie(values=[p_h*4, c_h*4, g_h*9], names=['Proteína', 'Carbos', 'Grasas'], 
+                             hole=0.4, title="Distribución de hoy", template="plotly_dark")
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info(f"No hay registros todavía para este {dia_hoy_nombre}.")
+    except Exception as e:
+        st.error(f"Error al cargar datos: {e}")
+
+with t2:
+    col_a, col_b = st.columns(2)
+    reg = None
+    with col_a:
+        st.subheader("📸 Foto IA")
+        foto = st.file_uploader("Sube tu plato", type=["jpg","png","jpeg"])
+        if foto and st.button("🔍 ANALIZAR"):
+            with st.spinner("🤖 Jarvis analizando..."):
+                try:
+                    img = base64.b64encode(foto.read()).decode()
+                    p = "Responde estrictamente: Nombre|Kcal|Prot|Carb|Gras"
+                    pld = {"contents":[{"parts":[{"text":p},{"inline_data":{"mime_type":"image/jpeg","data":img}}]}]}
+                    r = requests.post(URL_AI, json=pld).json()
+                    raw = r['candidates'][0]['content']['parts'][0]['text'].strip()
+                    d = raw.replace(' ','').replace('g','').replace('*','').split('|')
+                    reg = {"n":d[0], "k":float(d[1]), "p":float(d[2]), "c":float(d[3]), "g":float(d[4])}
+                except Exception: st.error("IA ocupada. Usa manual.")
+    with col_b:
+        st.subheader("✍️ Manual")
+        with st.form("f_manual", clear_on_submit=True):
+            n_m = st.text_input("Comida")
+            k_m = st.number_input("Kcal", 0.0)
+            p_m = st.number_input("Prot (g)", 0.0)
+            c_m = st.number_input("Carb (g)", 0.0)
+            g_m = st.number_input("Gras (g)", 0.0)
+            if st.form_submit_button("💾 GUARDAR"):
+                if n_m: reg = {"n":n_m, "k":k_m, "p":p_m, "c":c_m, "g":g_m}
+
+    if reg:
+        try:
+            supabase.table('registros_comida').insert({
+                "usuario": st.session_state.u_nom, "comida": str(reg['n']),
+                "kcal": float(reg['k']), "proteina": float(reg['p']),
+                "carbos": float(reg['c']), "grasas": float(reg['g']),
+                "semana": str(inicio_sem)
+            }).execute()
+            st.success(f"✅ {reg['n']} guardado.")
+            st.rerun()
+        except Exception: st.error("Error al guardar.")
+
+# --- 6. HISTORIAL SEMANAL POR DÍAS ---
+st.divider()
+st.subheader(f"📋 Historial Semanal: {st.session_state.u_nom}")
+if 'df_hist' in locals() and not df_hist.empty:
+    for fecha, grupo in df_hist.sort_values(by='created_at', ascending=False).groupby('f_dt'):
+        dia_n = dias_semana[pd.to_datetime(fecha).weekday()]
+        with st.expander(f"📅 {dia_n} ({fecha.strftime('%d/%m')}) — Total: {grupo['kcal'].sum():.0f} kcal"):
+            for _, r in grupo.iterrows():
+                st.write(f"🍴 **{r['comida']}** | 🔥 {r['kcal']:.0f} kcal | 🍗 P: {r['proteina']}g | 🍚 C: {r['carbos']}g | 🥑 G: {r['grasas']}g")
+else:
+    st.info("No hay datos registrados esta semana.")
+    
