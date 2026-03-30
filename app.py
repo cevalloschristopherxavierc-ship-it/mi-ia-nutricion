@@ -1,50 +1,73 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
+import base64
 from PIL import Image
+import io
 
 # 1. Configuración de API
 API_KEY = st.secrets.get("GEMINI_API_KEY")
-if API_KEY:
-    genai.configure(api_key=API_KEY)
-else:
-    st.error("Falta API Key en Secrets.")
-    st.stop()
 
 st.set_page_config(page_title="FitIA Pro", layout="centered")
 
 # --- INTERFAZ ---
-st.markdown("# 🥗 FitIA: Escáner 63kg")
-st.info("Objetivo: Ganar masa muscular")
+st.markdown("# 🥗 FitIA: Escáner Final")
+st.info("Perfil: 170cm | 63kg | Ganar Masa Muscular")
 
 f = st.file_uploader("📸 Sube la foto de tu comida", type=["jpg", "jpeg", "png"])
 
 if f:
-    img = Image.open(f)
-    st.image(img, use_container_width=True)
+    # Leer imagen y prepararla
+    img_bytes = f.read()
+    st.image(img_bytes, use_container_width=True)
     
     if st.button("🔍 Analizar Plato"):
-        with st.spinner("🤖 Jarvis probando conexión segura..."):
-            # Intentamos primero con Flash, si falla, saltamos a Pro
-            modelos = ["gemini-1.5-flash", "gemini-1.5-pro"]
-            exito = False
-            
-            for m_name in modelos:
-                try:
-                    model = genai.GenerativeModel(m_name)
-                    prompt = "Responde solo: Nombre|Kcal|Prot|Carb|Gras. Ejemplo: Pollo|500|40|50|10"
-                    response = model.generate_content([prompt, img])
+        with st.spinner("🤖 Jarvis conectando por túnel directo..."):
+            try:
+                # URL DIRECTA (Sin pasar por librerías internas)
+                # Intentamos la versión v1beta que es la más flexible para imágenes
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+                
+                # Convertir imagen a formato que Google entiende directamente
+                b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": "Analiza la imagen. Responde estrictamente: Nombre|Kcal|Prot|Carb|Gras"},
+                            {"inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": b64_img
+                            }}
+                        ]
+                    }]
+                }
+                
+                # Petición directa al servidor de Google
+                response = requests.post(url, json=payload)
+                data = response.json()
+                
+                # Si esto falla, intentamos la versión v1 (estable) automáticamente
+                if 'error' in data and data['error']['code'] == 404:
+                    url_v1 = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+                    response = requests.post(url_v1, json=payload)
+                    data = response.json()
+
+                if 'candidates' in data:
+                    res = data['candidates'][0]['content']['parts'][0]['text']
+                    stats = res.split('|')
+                    if len(stats) >= 5:
+                        st.success(f"🍴 {stats[0]}")
+                        c1, c2, c3, c4 = st.columns(4)
+                        c1.metric("Kcal", stats[1])
+                        c2.metric("Prot", f"{stats[2]}g")
+                        c3.metric("Carb", f"{stats[3]}g")
+                        c4.metric("Gras", f"{stats[4]}g")
+                else:
+                    st.error("❌ Error de Google:")
+                    st.json(data)
                     
-                    if response.text:
-                        st.success(f"✅ ¡Conectado con {m_name}!")
-                        st.write(f"Detección: {response.text}")
-                        exito = True
-                        break
-                except Exception:
-                    continue
-            
-            if not exito:
-                st.error("❌ Google sigue bloqueando la conexión.")
-                st.info("Asegúrate de haber creado la clave en un 'NUEVO PROYECTO' en AI Studio.")
+            except Exception as e:
+                st.error(f"Error de red: {e}")
 
 if st.button("🔄 Reiniciar App"):
     st.rerun()
