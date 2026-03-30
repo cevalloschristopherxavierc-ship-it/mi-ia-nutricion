@@ -3,8 +3,9 @@ import requests, base64, re, pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from supabase import create_client, Client
+import time
 
-# --- 1. CONFIGURACIÓN ---
+# --- 1. IDENTIDAD (XAVIER) ---
 st.set_page_config(page_title="Jarvis OS | Xavier", layout="wide", page_icon="🦾")
 
 st.markdown("""
@@ -25,16 +26,7 @@ def init_connection():
 
 supabase = init_connection()
 
-# --- 2. MOTOR DE VERIFICACIÓN ---
-def extraer_macros(texto):
-    """Extrae números de forma ultra-flexible."""
-    nums = re.findall(r"\d+\.?\d*", texto)
-    if len(nums) >= 2:
-        vals = [float(n) for n in nums]
-        return max(vals), min(vals) # Caloría es el mayor, Prot el menor
-    return None, None
-
-# --- 3. SESIÓN ---
+# --- 2. SESIÓN ---
 if 'u_nom' not in st.session_state:
     st.title("🦾 Activación Protocolo Jarvis")
     with st.form("p_ini"):
@@ -48,7 +40,7 @@ if 'u_nom' not in st.session_state:
             st.rerun()
     st.stop()
 
-# --- 4. METAS ---
+# --- 3. METAS INTACTAS (63kg) ---
 hoy = datetime.now()
 ini_s = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 meta_k = 3200.0 if st.session_state.u_obj == "Fútbol" else 2750.0
@@ -56,7 +48,7 @@ meta_p = st.session_state.u_pes * 2.2
 meta_g = (meta_k * 0.25) / 9
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
 
-# --- 5. SIDEBAR ---
+# --- 4. SIDEBAR ---
 with st.sidebar:
     st.title(f"👑 {st.session_state.u_nom}")
     st.divider()
@@ -67,13 +59,13 @@ with st.sidebar:
     if ca.button("➕ 0.5L"): st.session_state.h2o += 0.5; st.rerun()
     if cb.button("🧹 Reset"): st.session_state.h2o = 0.0; st.rerun()
     st.divider()
-    pas = st.number_input("👣 Pasos hoy:", 0, 50000, 0, 500)
-    st.metric("Gasto Estimado", f"{(pas/1000)*38:.0f} Kcal")
+    pas = st.number_input("👣 Pasos:", 0, 50000, 0, 500)
+    st.metric("Gasto", f"{(pas/1000)*38:.0f} Kcal")
     st.divider()
-    if st.text_input("🔐 Acceso Creador:", type="password") == "xavier2210":
+    if st.text_input("🔐 Creador:", type="password") == "xavier2210":
         st.session_state.creador = True
 
-# --- 6. DATA ---
+# --- 5. DATA SYNC ---
 k_act, p_act, g_act, c_act = 0.0, 0.0, 0.0, 0.0
 df_h = pd.DataFrame()
 try:
@@ -86,7 +78,7 @@ try:
         g_act, c_act = (k_act * 0.25) / 9, (k_act * 0.50) / 4
 except: pass
 
-# --- 7. DASHBOARD ---
+# --- 6. DASHBOARD ---
 st.header("📊 Centro de Mando")
 st.progress(min(k_act / meta_k, 1.0))
 m1, m2, m3, m4 = st.columns(4)
@@ -101,26 +93,30 @@ with tabs[0]:
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("📸 Escáner IA")
-        up = st.file_uploader("Subir plato", type=["jpg","png","jpeg"])
+        up = st.file_uploader("Foto", type=["jpg","png","jpeg"])
         if up and st.button("🔍 PROCESAR"):
-            with st.spinner("🤖 Jarvis analizando..."):
+            with st.spinner("🤖 Jarvis reconectando..."):
                 try:
                     img_b64 = base64.b64encode(up.read()).decode()
-                    # Endpoint v1beta de Google (más estable)
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={st.secrets['GEMINI_API_KEY']}"
-                    payload = {"contents":[{"parts":[{"text":"Nombre, Kcal, Prot. Ejemplo: Manzana, 95, 0.5"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
-                    r = requests.post(url, json=payload, timeout=20)
+                    payload = {"contents":[{"parts":[{"text":"Nombre, Kcal, Prot. Ejemplo: Pollo, 400, 30"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
                     
-                    if r.status_code == 200:
-                        res_txt = r.json()['candidates'][0]['content']['parts'][0]['text']
-                        kcal_v, prot_v = extraer_macros(res_txt)
-                        if kcal_v:
-                            nom_v = res_txt.split(',')[0].strip()[:20]
-                            supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":nom_v, "kcal":kcal_v, "proteina":prot_v, "semana":ini_s}).execute()
-                            st.rerun()
-                        else: st.warning("IA no detectó macros claros.")
-                    else: st.error("Fallo de respuesta Google.")
-                except: st.error("⚠️ Error de conexión. Use Manual.")
+                    # --- LÓGICA DE REINTENTO ---
+                    for i in range(2): # Lo intenta hasta 2 veces
+                        r = requests.post(url, json=payload, timeout=25)
+                        if r.status_code == 200:
+                            res_txt = r.json()['candidates'][0]['content']['parts'][0]['text']
+                            nums = re.findall(r"\d+\.?\d*", res_txt)
+                            if len(nums) >= 2:
+                                vals = [float(n) for n in nums]
+                                k_v, p_v = max(vals), min(vals)
+                                nom_v = res_txt.split(',')[0].strip()[:20]
+                                supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":nom_v, "kcal":k_v, "proteina":p_v, "semana":ini_s}).execute()
+                                st.rerun()
+                                break
+                        time.sleep(2) # Espera 2 segundos antes de reintentar
+                    else: st.error("⚠️ Google no responde. Use Manual.")
+                except: st.error("⚠️ Error de Red. Use Manual.")
 
     with c2:
         st.subheader("✍️ Registro Manual")
