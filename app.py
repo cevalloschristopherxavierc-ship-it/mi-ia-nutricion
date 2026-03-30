@@ -32,7 +32,7 @@ if 'u_nom' not in st.session_state:
             st.rerun()
     st.stop()
 
-# --- 3. LÓGICA DE METAS Y TIEMPO ---
+# --- 3. LÓGICA DE TIEMPO Y METAS ---
 hoy = datetime.now()
 dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 dia_hoy = dias[hoy.weekday()]
@@ -49,16 +49,7 @@ meta_p = st.session_state.u_pes * 2.2
 meta_g = (meta_k * 0.25) / 9
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
 
-# --- 4. SIDEBAR ---
-with st.sidebar:
-    st.title(f"👑 Maestro: {st.session_state.u_nom}")
-    st.info(f"📅 **{dia_hoy}**\n\n💪 {plan_entreno[dia_hoy]}")
-    st.session_state.steps = st.number_input("👣 Pasos hoy:", 0, 50000, st.session_state.get('steps', 0), step=500)
-    if st.button("🔄 Reiniciar"):
-        st.session_state.clear()
-        st.rerun()
-
-# --- 5. OBTENCIÓN DE DATOS REALES ---
+# --- 4. OBTENCIÓN DE DATOS REALES ---
 p_act, k_act, c_act, g_act = 0.0, 0.0, 0.0, 0.0
 df_hoy = pd.DataFrame()
 try:
@@ -71,13 +62,13 @@ try:
         c_act, g_act = (k_act * 0.5) / 4, (k_act * 0.25) / 9
 except: pass
 
-# --- DASHBOARD ---
-st.title(f"📊 Dashboard Nutricional")
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Kcal", f"{k_act:.0f}/{meta_k:.0f}")
-c2.metric("Prot", f"{p_act:.1f}g", f"/{meta_p:.0f}g")
-c3.metric("Carb", f"{c_act:.1f}g", f"/{meta_c:.0f}g")
-c4.metric("Gras", f"{g_act:.1f}g", f"/{meta_g:.0f}g")
+# --- 5. DASHBOARD ---
+st.title(f"📊 Dashboard Nutricional: {st.session_state.u_nom}")
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("🔥 Kcal", f"{k_act:.0f}", f"/{meta_k:.0f}")
+m2.metric("🍗 Prot", f"{p_act:.1f}g", f"/{meta_p:.0f}g")
+m3.metric("🍚 Carb", f"{c_act:.1f}g", f"/{meta_c:.0f}g")
+m4.metric("🥑 Gras", f"{g_act:.1f}g", f"/{meta_g:.0f}g")
 
 t1, t2, t3 = st.tabs(["🍽️ REGISTRO", "📈 ANÁLISIS", "📅 DIARIO Y HORARIO"])
 
@@ -90,19 +81,7 @@ with t1:
             with st.spinner("🤖 Jarvis analizando..."):
                 try:
                     img_b64 = base64.b64encode(foto.read()).decode()
-                    payload = {"contents":[{"parts":[{"text":"Responde SOLO: Nombre|Kcal|Proteina"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
-                    r = requests.post(URL_AI, json=payload, timeout=15).json()
+                    payload = {"contents":[{"parts":[{"text":"Responde Nombre|Kcal|Proteina"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
+                    r = requests.post(URL_AI, json=payload).json()
                     if 'candidates' in r:
-                        txt = r['candidates'][0]['content']['parts'][0]['text'].strip()
-                        partes = txt.split('|')
-                        if len(partes) >= 3:
-                            kv = float(re.findall(r"\d+", partes[1])[0])
-                            pv = float(re.findall(r"\d+", partes[2])[0])
-                            supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":partes[0].strip(), "kcal":kv, "proteina":pv, "semana":inicio_sem}).execute()
-                            st.rerun()
-                    else: st.warning("La IA tardó mucho. Reintenta.")
-                except: st.error("Error de conexión.")
-    with col_b:
-        st.subheader("✍️ Manual")
-        with st.form("m"):
-            cm, pm, km = st.text_input("Comida"), st.number_input("Prot",0.0), st.number
+                        txt = r['candidates'][0]['content']['
