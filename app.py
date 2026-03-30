@@ -71,31 +71,13 @@ with st.sidebar:
 # --- 5. DASHBOARD ---
 st.title(f"📊 Dashboard Nutricional: {st.session_state.u_nom}")
 
-# Lógica de Alarma de Proteína (Inyección v63)
-p_actual = 0.0 # Variable temporal para chequear
+# Lógica de Alarma de Proteína
+p_actual = 0.0 
 try:
     res_check = supabase.table('registros_comida').select('proteina').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
     if res_check.data:
         p_actual = sum(float(r['proteina']) for r in res_check.data)
 except: pass
 
-if hora_actual >= 16 and p_actual < (meta_p * 0.6): # Si son más de las 4pm y llevas menos del 60%
-    st.error(f"🚨 **ALERTA JARVIS:** Xavier, vas bajo en proteína ({p_actual:.0f}g de {meta_p:.0f}g). ¡Cómete 2 huevos o una porción de pollo ahora para recuperar el músculo!")
-
-t1, t2 = st.tabs(["📈 ESTADÍSTICAS", "🍽️ REGISTRAR"])
-
-with t1:
-    try:
-        res_db = supabase.table('registros_comida').select('*').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
-        df_hist = pd.DataFrame(res_db.data) if res_db.data else pd.DataFrame()
-        
-        if not df_hist.empty:
-            df_hist['f_dt'] = pd.to_datetime(df_hist['created_at']).dt.date
-            hoy_data = df_hist[df_hist['f_dt'] == hoy.date()]
-            k_h, p_h, c_h, g_h = hoy_data['kcal'].sum(), hoy_data['proteina'].sum(), hoy_data['carbos'].sum(), hoy_data['grasas'].sum()
-            
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Calorías", f"{k_h:.0f}", f"Meta: {meta_k:.0f}")
-            c2.metric("Proteína", f"{p_h:.1f}g", f"Meta: {meta_p:.0f}g")
-            c3.metric("Carbos", f"{c_h:.1f}g", f"Meta: {meta_c:.0f}g")
-            c4.metric("Grasas", f"{g_h:.1f}g", f"Meta: {
+if hora_actual >= 16 and p_actual < (meta_p * 0.6): 
+    st.error(f"🚨 **ALERTA JARVIS:** Xavier, vas bajo en proteína ({p_actual:.0f}g de {meta_
