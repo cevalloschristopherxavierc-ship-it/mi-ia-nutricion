@@ -21,7 +21,7 @@ if 'u_nom' not in st.session_state:
     with st.form("reg"):
         st.title("🦾 Activación Jarvis")
         nom = st.text_input("Usuario:", "Xavier")
-        pes = st.number_input("Peso (kg):", 30.0, 150.0, 63.0)
+        pes = st.number_input("Peso Actual (kg):", 30.0, 150.0, 63.0)
         obj = st.selectbox("Objetivo:", ["Hipertrofia", "Fútbol", "Definición"])
         if st.form_submit_button("🚀 ENTRAR"):
             st.session_state.u_nom, st.session_state.u_pes, st.session_state.u_obj = nom.strip(), pes, obj
@@ -29,34 +29,37 @@ if 'u_nom' not in st.session_state:
             st.rerun()
     st.stop()
 
-# --- 3. METAS Y TIEMPO ---
+# --- 3. METAS DINÁMICAS ---
 hoy = datetime.now()
-dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-dia_h = dias[hoy.weekday()]
 ini_s = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 
+# Cálculo de Macros para Xavier (63kg)
 meta_k = 3200.0 if st.session_state.u_obj == "Fútbol" else 2750.0
-meta_p = st.session_state.u_pes * 2.2
-meta_g = (meta_k * 0.25) / 9  # Meta de Grasa (25% de kcal)
-meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
+meta_p = st.session_state.u_pes * 2.2 # ~139g Proteína
+meta_g = (meta_k * 0.25) / 9          # ~89g Grasa (25% kcal)
+meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4 # ~460g Carb (Combustible)
 
-# --- 4. SIDEBAR (Agua y Pasos) ---
+# --- 4. SIDEBAR (Agua con Barra de Llenado y Pasos) ---
 with st.sidebar:
-    st.title(f"👑 {st.session_state.u_nom}")
-    st.info(f"🏋️ Hoy: {dia_h}")
+    st.title(f"👑 Maestro: {st.session_state.u_nom}")
     st.divider()
-    st.subheader("💧 Agua")
+    st.subheader("💧 Hidratación")
+    # Barra de llenado de agua
+    progreso_agua = min(st.session_state.h2o / 3.5, 1.0)
+    st.progress(progreso_agua)
+    st.write(f"Llenado: **{st.session_state.h2o:.1f}L** / 3.5L")
+    
     c1, c2 = st.columns(2)
     if c1.button("➕ 0.5L"): st.session_state.h2o += 0.5; st.rerun()
     if c2.button("🧹 Reset"): st.session_state.h2o = 0.0; st.rerun()
-    st.write(f"Consumo: **{st.session_state.h2o}L** / 3.5L")
+    
     st.divider()
-    st.subheader("👣 Actividad")
+    st.subheader("👣 Pasos")
     steps = st.number_input("Pasos hoy:", 0, 50000, 0, 500)
     k_steps = (steps / 1000) * 38
-    st.metric("Quemado", f"{k_steps:.0f} Kcal")
+    st.metric("Gasto Extra", f"{k_steps:.0f} Kcal")
     st.divider()
-    cod = st.text_input("🔐 Creador:", type="password")
+    cod = st.sidebar.text_input("🔐 Creador:", type="password")
     st.session_state.creador = (cod == "xavier2210")
 
 # --- 5. DATA ---
@@ -69,22 +72,23 @@ try:
         df_a['f'] = pd.to_datetime(df_a['created_at']).dt.date
         df_h = df_a[(df_a['usuario'] == st.session_state.u_nom) & (df_a['f'] == hoy.date())]
         k_act, p_act = df_h['kcal'].sum(), df_h['proteina'].sum()
-        # CORRECCIÓN LÍNEA 90:
+        # Distribución estimada de lo consumido
         g_act = (k_act * 0.25) / 9 if k_act > 0 else 0.0
-        c_act = (k_act * 0.50) / 4 if k_act > 0 else 0.0
+        c_act = (k_act * 0.55) / 4 if k_act > 0 else 0.0
 except: pass
 
 # --- 6. UI ---
 st.title("📊 Panel Élite Jarvis")
+# Barra de llenado de Calorías principal
 st.progress(min(k_act / meta_k, 1.0))
 
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("🔥 Kcal", f"{k_act:.0f}/{meta_k:.0f}")
-m2.metric("🍗 Prot", f"{p_act:.1f}g/{meta_p:.0f}g")
-m3.metric("🥑 Grasa", f"{g_act:.1f}g/{meta_g:.0f}g")
-m4.metric("🍚 Carb", f"{c_act:.0f}g")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("🔥 Kcal", f"{k_act:.0f}/{meta_k:.0f}")
+col2.metric("🍗 Prot", f"{p_act:.1f}/{meta_p:.0f}g")
+col3.metric("🥑 Grasa", f"{g_act:.1f}/{meta_g:.0f}g")
+col4.metric("🍚 Carb", f"{c_act:.0f}/{meta_c:.0f}g") # META AÑADIDA AQUÍ
 
-t1, t2, t3, t4 = st.tabs(["🍽️ REGISTRO", "💪 MÚSCULO", "📝 DIARIO", "🕵️ CREADOR"])
+t1, t2, t3, t4 = st.tabs(["🍽️ REGISTRO", "💪 ANÁLISIS", "📝 DIARIO", "🕵️ CREADOR"])
 
 with t1:
     ca, cb = st.columns(2)
@@ -92,7 +96,7 @@ with t1:
         st.subheader("📸 Foto IA")
         foto = st.file_uploader("Sube plato", type=["jpg","png","jpeg"])
         if foto and st.button("🔍 ANALIZAR"):
-            with st.spinner("🤖 Jarvis..."):
+            with st.spinner("🤖 Analizando..."):
                 try:
                     img = base64.b64encode(foto.read()).decode()
                     pay = {"contents":[{"parts":[{"text":"Nombre|Kcal|Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img}}]}]}
@@ -102,36 +106,35 @@ with t1:
                         kv, pv = float(re.findall(r"\d+", pts[1])[0]), float(re.findall(r"\d+", pts[2])[0])
                         supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":pts[0], "kcal":kv, "proteina":pv, "semana":ini_s}).execute()
                         st.rerun()
-                except: st.error("Error IA")
+                except: st.error("Error IA. Intenta de nuevo.")
     with cb:
         st.subheader("✍️ Manual")
         with st.form("m_en"):
             cm = st.text_input("Comida")
             pm, km = st.number_input("Prot", 0.0), st.number_input("Kcal", 0.0)
-            if st.form_submit_button("💾"):
+            if st.form_submit_button("💾 GUARDAR"):
                 supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":cm, "kcal":km, "proteina":pm, "semana":ini_s}).execute()
                 st.rerun()
 
 with t2:
-    st.subheader("💪 Análisis Muscular Animado")
+    st.subheader("💪 Músculo Animado")
     if p_act > 0:
-        fig = px.bar_polar(r=[p_act/meta_p, k_act/meta_k, g_act/meta_g], 
-                           theta=['Músculo (Prot)', 'Energía (Kcal)', 'Hormonas (Grasa)'],
-                           color=['Prot', 'Kcal', 'Grasa'], template="plotly_dark",
-                           color_discrete_sequence=['#FF4B4B', '#48FF48', '#F1C40F'])
+        fig = px.bar_polar(r=[p_act/meta_p, k_act/meta_k, c_act/meta_c, g_act/meta_g], 
+                           theta=['Prot', 'Kcal', 'Carb', 'Grasa'],
+                           color=['Prot', 'Kcal', 'Carb', 'Grasa'], template="plotly_dark",
+                           color_discrete_sequence=['#FF4B4B', '#48FF48', '#3498DB', '#F1C40F'])
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("🔥 ¡Haz que el músculo crezca hacia afuera!")
-    else: st.info("Sin datos.")
+    else: st.info("Sin datos suficientes.")
 
 with t3:
-    st.subheader("📝 Historial Profesional")
+    st.subheader("📝 Historial de Hoy")
     if not df_h.empty:
         st.table(df_h[['comida', 'kcal', 'proteina']])
-    else: st.write("Vacío.")
+    else: st.write("Aún no hay registros.")
 
 with t4:
     if st.session_state.get('creador', False):
-        st.subheader("🕵️ Panel Creador Activo")
+        st.subheader("🕵️ Supervisor Élite")
         if not df_a.empty:
             sel = st.selectbox("Usuario:", df_a['usuario'].unique())
             st.dataframe(df_a[df_a['usuario'] == sel], use_container_width=True)
