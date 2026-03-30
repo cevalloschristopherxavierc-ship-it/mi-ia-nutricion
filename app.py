@@ -5,27 +5,38 @@ import base64
 # 1. Configuración de API
 API_KEY = st.secrets.get("GEMINI_API_KEY")
 
-st.set_page_config(page_title="FitIA Pro", layout="centered", page_icon="🥗")
+st.set_page_config(page_title="FitIA Pro", layout="centered", page_icon="💪")
 
-# Estilo visual
-st.markdown("# 🥗 Jarvis Nutrición Pro")
-st.info("📍 Portoviejo | 👤 170cm | ⚖️ 63kg")
+# --- INTERFAZ PERSONALIZADA ---
+st.title("💪 Jarvis: Modo Hipertrofia")
+st.markdown(f"**Usuario:** 170cm | 63kg | Portoviejo")
+
+# Meta diaria de proteína (ejemplo: 2g por kilo = 126g)
+meta_proteina = 126 
+if 'prot_total' not in st.session_state:
+    st.session_state.prot_total = 0
+
+# Barra de progreso
+st.write(f"### Tu Proteína de hoy: {st.session_state.prot_total}g / {meta_proteina}g")
+progreso = min(st.session_state.prot_total / meta_proteina, 1.0)
+st.progress(progreso)
+
+st.divider()
 
 # --- ESCÁNER ---
-f = st.file_uploader("📸 Sube la foto de tu plato", type=["jpg", "jpeg", "png"])
+f = st.file_uploader("📸 Escanea tu comida", type=["jpg", "jpeg", "png"])
 
 if f:
     img_bytes = f.read()
-    st.image(img_bytes, use_container_width=True, caption="Plato listo para análisis")
+    st.image(img_bytes, use_container_width=True)
     
-    if st.button("🔍 ANALIZAR MACROS"):
-        with st.spinner("🤖 Jarvis activando motor Gemini 2.5 Flash..."):
+    if st.button("🔍 ANALIZAR Y SUMAR"):
+        with st.spinner("🤖 Jarvis calculando..."):
             try:
-                # USAMOS EL MODELO #0 DE TU LISTA: gemini-2.5-flash
+                # Mantenemos el modelo que YA funcionó
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
                 
                 b64_img = base64.b64encode(img_bytes).decode('utf-8')
-                
                 payload = {
                     "contents": [{
                         "parts": [
@@ -35,38 +46,33 @@ if f:
                     }]
                 }
                 
-                # Petición directa
                 r = requests.post(url, json=payload)
                 data = r.json()
                 
                 if 'candidates' in data:
-                    texto = data['candidates'][0]['content']['parts'][0]['text']
-                    stats = texto.split('|')
-                    
+                    res = data['candidates'][0]['content']['parts'][0]['text']
+                    stats = res.split('|')
                     if len(stats) >= 5:
-                        st.balloons() 
-                        st.success(f"🍴 Plato detectado: **{stats[0]}**")
+                        nombre = stats[0]
+                        prot = float(stats[2].replace('g',''))
                         
-                        # Mostrar métricas
-                        c1, c2, c3, c4 = st.columns(4)
-                        c1.metric("🔥 Kcal", stats[1])
-                        c2.metric("🍗 Prot", f"{stats[2]}g")
-                        c3.metric("🍚 Carb", f"{stats[3]}g")
-                        c4.metric("🥑 Gras", f"{stats[4]}g")
+                        # Sumar al total de la sesión
+                        st.session_state.prot_total += prot
                         
-                        st.divider()
-                        st.caption(" Jarvis está listo para tu entrenamiento de hoy.")
-                    else:
-                        st.warning(f"Respuesta inesperada: {texto}")
-                
-                elif 'error' in data:
-                    if data['error']['code'] == 429:
-                        st.warning("⏳ Google está terminando de asignar tu cuota 2.5. Espera 30 segundos y presiona el botón de nuevo.")
-                    else:
-                        st.error(f"Error {data['error']['code']}: {data['error']['message']}")
-                
+                        st.success(f"✅ ¡{nombre} analizado!")
+                        col1, col2, col3 = st.columns(3)
+                        col1.metric("Calorías", stats[1])
+                        col2.metric("Proteína", f"{prot}g")
+                        col3.metric("Carbos", stats[3])
+                        
+                        # Consejo dinámico
+                        st.info("💡 **Consejo de Jarvis:** Mañana toca lunes de piernas/glúteos. ¡Asegúrate de llegar a tu meta de proteína hoy!")
+                        st.balloons()
+                else:
+                    st.error("Error en el escaneo.")
             except Exception as e:
-                st.error(f"Error de conexión: {e}")
+                st.error(f"Hubo un problema: {e}")
 
-if st.button("🔄 Reiniciar"):
+if st.button("🗑️ Reiniciar Día"):
+    st.session_state.prot_total = 0
     st.rerun()
