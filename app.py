@@ -1,78 +1,71 @@
 import streamlit as st
 import requests
 import base64
+from datetime import datetime
 
-# 1. Configuración de API
+# 1. Configuración de API (Mantenemos lo que funcionó)
 API_KEY = st.secrets.get("GEMINI_API_KEY")
+MODEL_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
 
-st.set_page_config(page_title="FitIA Pro", layout="centered", page_icon="💪")
+st.set_page_config(page_title="Jarvis Nutrición Pro", layout="centered", page_icon="💪")
 
-# --- INTERFAZ PERSONALIZADA ---
+# --- LÓGICA DE ESTADO (MEMORIA) ---
+if 'historial' not in st.session_state:
+    st.session_state.historial = []
+if 'total_prot' not in st.session_state:
+    st.session_state.total_prot = 0.0
+
+# Meta calculada para 63kg (2g prot x kg)
+META_PROT = 126.0 
+
+# --- INTERFAZ ---
 st.title("💪 Jarvis: Modo Hipertrofia")
-st.markdown(f"**Usuario:** 170cm | 63kg | Portoviejo")
+st.markdown(f"**Perfil:** 170cm | 63kg | 📍 Portoviejo")
 
-# Meta diaria de proteína (ejemplo: 2g por kilo = 126g)
-meta_proteina = 126 
-if 'prot_total' not in st.session_state:
-    st.session_state.prot_total = 0
-
-# Barra de progreso
-st.write(f"### Tu Proteína de hoy: {st.session_state.prot_total}g / {meta_proteina}g")
-progreso = min(st.session_state.prot_total / meta_proteina, 1.0)
-st.progress(progreso)
+# Sección de Progreso
+col_prog, col_stats = st.columns([2, 1])
+with col_prog:
+    st.write(f"### Proteína: {st.session_state.total_prot:.1f}g / {META_PROT}g")
+    progreso = min(st.session_state.total_prot / META_PROT, 1.0)
+    st.progress(progreso)
+with col_stats:
+    st.metric("Meta Diaria", f"{META_PROT}g")
 
 st.divider()
 
 # --- ESCÁNER ---
-f = st.file_uploader("📸 Escanea tu comida", type=["jpg", "jpeg", "png"])
+st.subheader("📸 Escáner de Comida")
+f = st.file_uploader("Sube la foto de tu plato para sumar al día", type=["jpg", "jpeg", "png"])
 
 if f:
     img_bytes = f.read()
-    st.image(img_bytes, use_container_width=True)
+    st.image(img_bytes, use_container_width=True, caption="Plato detectado")
     
-    if st.button("🔍 ANALIZAR Y SUMAR"):
-        with st.spinner("🤖 Jarvis calculando..."):
+    if st.button("🔍 ANALIZAR Y GUARDAR"):
+        with st.spinner("🤖 Jarvis calculando nutrientes..."):
             try:
-                # Mantenemos el modelo que YA funcionó
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
-                
                 b64_img = base64.b64encode(img_bytes).decode('utf-8')
                 payload = {
                     "contents": [{
                         "parts": [
-                            {"text": "Analiza la comida. Responde estrictamente: Nombre|Kcal|Prot|Carb|Gras"},
+                            {"text": "Analiza la comida. Responde estrictamente: Nombre|Kcal|Prot|Carb|Gras. No digas nada más."},
                             {"inline_data": {"mime_type": "image/jpeg", "data": b64_img}}
                         ]
                     }]
                 }
                 
-                r = requests.post(url, json=payload)
+                r = requests.post(MODEL_URL, json=payload)
                 data = r.json()
                 
                 if 'candidates' in data:
                     res = data['candidates'][0]['content']['parts'][0]['text']
                     stats = res.split('|')
+                    
                     if len(stats) >= 5:
                         nombre = stats[0]
-                        prot = float(stats[2].replace('g',''))
+                        kcal = stats[1]
+                        # Limpiar el texto para convertir a número
+                        p_val = float(stats[2].lower().replace('g','').replace('prot:','').strip())
                         
-                        # Sumar al total de la sesión
-                        st.session_state.prot_total += prot
-                        
-                        st.success(f"✅ ¡{nombre} analizado!")
-                        col1, col2, col3 = st.columns(3)
-                        col1.metric("Calorías", stats[1])
-                        col2.metric("Proteína", f"{prot}g")
-                        col3.metric("Carbos", stats[3])
-                        
-                        # Consejo dinámico
-                        st.info("💡 **Consejo de Jarvis:** Mañana toca lunes de piernas/glúteos. ¡Asegúrate de llegar a tu meta de proteína hoy!")
-                        st.balloons()
-                else:
-                    st.error("Error en el escaneo.")
-            except Exception as e:
-                st.error(f"Hubo un problema: {e}")
-
-if st.button("🗑️ Reiniciar Día"):
-    st.session_state.prot_total = 0
-    st.rerun()
+                        # Guardar en historial
+                        nueva_
