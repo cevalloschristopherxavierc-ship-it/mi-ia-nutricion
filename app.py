@@ -48,7 +48,7 @@ rutina = {
 }
 
 meta_k = 3200 if st.session_state.u_obj == "Fútbol" else 2750
-meta_p = st.session_state.u_pes * 2.2
+meta_p = st.session_state.u_pes * 2.2 # 138.6g para Xavier
 if 'agua' not in st.session_state: st.session_state.agua = 0.0
 if 'pasos' not in st.session_state: st.session_state.pasos = 0
 
@@ -68,7 +68,7 @@ with st.sidebar:
     cod = st.text_input("Código Maestro:", type="password")
     st.session_state.creador = (cod == "xavier2210")
 
-# --- 5. DATA ---
+# --- 5. OBTENCIÓN DE DATOS ---
 p_act, k_act = 0.0, 0.0
 df_hoy, df_all = pd.DataFrame(), pd.DataFrame()
 try:
@@ -94,19 +94,8 @@ with t1:
     with col_a:
         st.subheader("📸 Foto IA")
         foto = st.file_uploader("Sube plato", type=["jpg","png","jpeg"])
-        if foto and st.button("🔍 ANALIZAR"):
-            with st.spinner("🤖 Jarvis analizando..."):
+        if foto and st.button("🔍 ANALIZAR CON JARVIS"):
+            with st.spinner("🤖 Analizando..."):
                 try:
                     img_b64 = base64.b64encode(foto.read()).decode()
-                    payload = {"contents":[{"parts":[{"text":"Nombre|Kcal|Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
-                    r = requests.post(URL_AI, json=payload, timeout=15).json()
-                    txt = r['candidates'][0]['content']['parts'][0]['text'].strip()
-                    pts = txt.split('|')
-                    if len(pts) >= 3:
-                        kv = float(re.findall(r"\d+", pts[1])[0])
-                        pv = float(re.findall(r"\d+", pts[2])[0])
-                        supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":pts[0].strip(), "kcal":kv, "proteina":pv, "semana":inicio_sem}).execute()
-                        st.rerun()
-                except: st.error("Error IA. Intenta de nuevo.")
-    with col_b:
-        st.subheader("✍
+                    payload = {"contents":[{"parts":[{"text":"Nombre|Kcal|Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64
