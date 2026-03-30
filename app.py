@@ -60,7 +60,6 @@ try:
         df_hoy = df_all[df_all['fecha'] == hoy.date()]
         if not df_hoy.empty:
             k_act, p_act = df_hoy['kcal'].sum(), df_hoy['proteina'].sum()
-            # Cálculo de macros basado en lo ingerido
             c_act = (k_act * 0.5) / 4
             g_act = (k_act * 0.25) / 9
 except: pass
@@ -79,9 +78,9 @@ with t1:
     col_a, col_b = st.columns(2)
     with col_a:
         st.subheader("📸 Foto IA")
-        foto = st.file_uploader("Sube tu plato", type=["jpg","png","jpeg"])
+        foto = st.file_uploader("Sube plato", type=["jpg","png","jpeg"])
         if foto and st.button("🔍 ANALIZAR"):
-            with st.spinner("🤖 Jarvis procesando..."):
+            with st.spinner("🤖 Jarvis analizando..."):
                 try:
                     img_b64 = base64.b64encode(foto.read()).decode()
                     payload = {"contents":[{"parts":[{"text":"Nombre|Kcal|Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
@@ -93,13 +92,13 @@ with t1:
                         pv = float(re.findall(r"\d+", partes[2])[0])
                         supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":partes[0].strip(), "kcal":kv, "proteina":pv, "semana":inicio_sem}).execute()
                         st.rerun()
-                except: st.error("Error al procesar foto.")
+                except: st.error("Error IA.")
     with col_b:
-        st.subheader("✍️ Registro Manual")
-        with st.form("manual_entry"):
+        st.subheader("✍️ Manual")
+        with st.form("m_entry"):
             cm = st.text_input("Comida")
-            pm = st.number_input("Proteína (g)", 0.0)
-            km = st.number_input("Calorías (kcal)", 0.0)
+            pm = st.number_input("Prot (g)", 0.0)
+            km = st.number_input("Kcal", 0.0)
             if st.form_submit_button("💾 GUARDAR"):
                 supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":cm, "kcal":km, "proteina":pm, "semana":inicio_sem}).execute()
                 st.rerun()
@@ -107,14 +106,8 @@ with t1:
 with t2:
     st.subheader("🥧 Distribución de Macronutrientes")
     if k_act > 0:
-        # Gráfico circular profesional
-        fig = px.pie(
-            values=[p_act*4, c_act*4, g_act*9], 
-            names=['Proteína', 'Carbohidratos', 'Grasas'], 
-            hole=0.5,
-            color_discrete_sequence=px.colors.qualitative.Pastel,
-            template="plotly_dark"
-        )
+        fig = px.pie(values=[p_act*4, c_act*4, g_act*9], names=['Prot', 'Carb', 'Gras'], hole=0.5, template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.warning("⚠️ No hay datos para analizar
+        # CORRECCIÓN LÍNEA 120 (Cerrada correctamente):
+        st.warning("⚠️ No hay datos registrados para mostrar el análisis hoy
