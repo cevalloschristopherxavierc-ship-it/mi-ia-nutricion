@@ -6,7 +6,7 @@ import plotly.express as px
 from datetime import datetime, timedelta
 from supabase import create_client, Client
 
-# --- 1. CONFIGURACIÓN E INTERFAZ ---
+# --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="Jarvis Fitness AI", layout="wide", page_icon="🦾")
 
 try:
@@ -15,22 +15,22 @@ try:
     URL_AI = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={G_KEY}"
     supabase: Client = create_client(S_URL, S_KEY)
 except Exception:
-    st.error("⚠️ Error en Secrets. Revisa la configuración en Streamlit Cloud.")
+    st.error("⚠️ Configura los Secrets en Streamlit Cloud.")
     st.stop()
 
-# --- 2. PERFIL Y BIOMETRÍA ---
+# --- 2. PERFIL DE USUARIO ---
 if 'perfil_listo' not in st.session_state:
     st.session_state.perfil_listo = False
 
 if not st.session_state.perfil_listo:
     st.title("🦾 Activación de Núcleo Jarvis")
     with st.form("perfil_inicial"):
-        st.write("Datos para el cálculo de macros y rendimiento:")
+        st.write("Configura tus datos para el cálculo de macros:")
         c1, c2 = st.columns(2)
         nom = c1.text_input("¿Tu nombre?", "Xavier")
-        pes = c2.number_input("Peso actual (kg)", 30.0, 150.0, 63.0)
+        pes = c2.number_input("Peso (kg)", 30.0, 150.0, 63.0)
         alt = c1.number_input("Altura (cm)", 100, 230, 170)
-        obj = c2.selectbox("Objetivo Principal", ["Hipertrofia", "Fútbol", "Definición"])
+        obj = c2.selectbox("Objetivo", ["Hipertrofia", "Fútbol", "Definición"])
         if st.form_submit_button("🚀 INICIAR SISTEMA"):
             st.session_state.u_nom = nom.strip()
             st.session_state.u_pes = pes
@@ -39,40 +39,46 @@ if not st.session_state.perfil_listo:
             st.rerun()
     st.stop()
 
-# --- 3. LÓGICA DE CALENDARIO ---
+# --- 3. TIEMPO Y DÍAS ---
 hoy = datetime.now()
 inicio_sem = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 dia_hoy_nombre = dias_semana[hoy.weekday()]
 
-# --- 4. SIDEBAR (METAS DE NUTRICIÓN DETALLADAS) ---
+# --- 4. SIDEBAR (METAS COMPLETAS) ---
 with st.sidebar:
     st.title(f"🦾 {st.session_state.u_nom}")
     st.write(f"⚖️ {st.session_state.u_pes}kg | 📏 {st.session_state.u_alt}cm")
     st.divider()
+    modo = st.radio("Actividad hoy:", ["Gym (Pierna/Glúteo)", "Fútbol (2h+)"])
     
-    modo = st.radio("Actividad de hoy:", ["Gym (Pierna/Glúteo)", "Fútbol (2h+)"])
-    
-    # CÁLCULO CIENTÍFICO DE METAS
+    # METAS CALCULADAS
     meta_k = 3200.0 if "Fútbol" in modo else 2700.0
-    meta_p = st.session_state.u_pes * 2.2  # Proteína: 2.2g por kilo
-    meta_g = st.session_state.u_pes * 1.0  # Grasas: 1g por kilo
-    meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4  # Carbos: El resto
+    meta_p = st.session_state.u_pes * 2.2 
+    meta_g = st.session_state.u_pes * 1.0 
+    meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4 
     
-    # Hidratación (35ml x kg + extra por sudor en Manabí)
     agua = (st.session_state.u_pes * 35 / 1000) + (1.2 if "Fútbol" in modo else 0.6)
     
-    st.success(f"📅 Hoy: **{dia_hoy_nombre}**")
-    st.info(f"💧 Agua diaria: **{agua:.2f} L**")
-    st.markdown(f"""
-    **Metas de hoy:**
-    * 🍗 Prot: **{meta_p:.0f}g**
-    * 🍚 Carb: **{meta_c:.0f}g**
-    * 🥑 Gras: **{meta_g:.0f}g**
-    """)
+    st.success(f"📅 Hoy es: **{dia_hoy_nombre}**")
+    st.info(f"💧 Agua: **{agua:.2f}L**")
+    st.info(f"🍗 Prot: **{meta_p:.0f}g** | 🍚 Carb: **{meta_c:.0f}g** | 🥑 Gras: **{meta_g:.0f}g**")
     
     if st.button("🔄 Cerrar Sesión"):
         st.session_state.clear()
         st.rerun()
 
-# --- 5. DASHBOARD Y
+# --- 5. DASHBOARD ---
+st.title(f"📊 Dashboard Nutricional: {st.session_state.u_nom}")
+t1, t2 = st.tabs(["📈 ESTADÍSTICAS", "🍽️ REGISTRAR"])
+
+with t1:
+    try:
+        res_db = supabase.table('registros_comida').select('*').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
+        df_hist = pd.DataFrame(res_db.data) if res_db.data else pd.DataFrame()
+        
+        if not df_hist.empty:
+            df_hist['f_dt'] = pd.to_datetime(df_hist['created_at']).dt.date
+            hoy_data = df_hist[df_hist['f_dt'] == hoy.date()]
+            
+            k_h, p_h, c_h, g_h = hoy_data['kcal'].sum(), hoy_data['proteina'].sum(), hoy_data['carbos'].sum(), hoy_data['grasas'].sum
