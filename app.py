@@ -37,7 +37,6 @@ inicio_sem = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 if 'h2o' not in st.session_state: st.session_state.h2o = 0.0
 if 'steps' not in st.session_state: st.session_state.steps = 0
 
-# CORRECCIÓN LÍNEA 41: Blindaje contra AttributeError
 objetivo_actual = st.session_state.get('u_obj', "Hipertrofia")
 meta_k = 3200.0 if objetivo_actual == "Fútbol" else 2750.0
 meta_p = st.session_state.u_pes * 2.2 
@@ -45,11 +44,10 @@ meta_g = st.session_state.u_pes * 0.9
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
 meta_agua = (st.session_state.u_pes * 35 / 1000) + (1.2 if objetivo_actual == "Fútbol" else 0.6)
 
-# --- 4. SIDEBAR (METAS Y VIGILANCIA) ---
+# --- 4. SIDEBAR ---
 with st.sidebar:
     st.title(f"👑 Maestro: {st.session_state.u_nom}")
     st.divider()
-    
     st.subheader("💧 Hidratación")
     prog_agua = min(st.session_state.h2o / meta_agua, 1.0)
     st.progress(prog_agua)
@@ -57,25 +55,17 @@ with st.sidebar:
     if st.button("➕ Beber 500ml"): 
         st.session_state.h2o += 0.5
         st.rerun()
-    
     st.divider()
-    st.subheader("📊 Metas Diarias")
+    st.subheader("📊 Metas")
     st.info(f"🔥 Kcal: **{meta_k:.0f}**")
     st.info(f"🍗 Prot: **{meta_p:.0f}g**")
-    
     st.divider()
     st.subheader("🕵️ Panel Maestro")
     target = st.text_input("Vigilar Discípulo:", placeholder="Nombre")
     btn_vigilar = st.button("👁️ Rastrear")
-    
-    if st.button("🔄 Reiniciar App"):
-        st.session_state.clear()
-        st.rerun()
 
-# --- 5. DASHBOARD PERSONAL ---
+# --- 5. DASHBOARD ---
 st.title(f"📊 Dashboard: {st.session_state.u_nom}")
-
-# Obtener datos reales
 p_act, k_act = 0.0, 0.0
 try:
     res = supabase.table('registros_comida').select('*').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
@@ -86,12 +76,10 @@ try:
         k_act, p_act = hoy_df['kcal'].sum(), hoy_df['proteina'].sum()
 except: pass
 
-# Bonus Motivador
 if p_act >= meta_p and st.session_state.steps >= 8000:
     st.balloons()
     st.success("🔥 ¡Es hora de ponerte mamado y fuerte! 🔥")
 
-# Métricas
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Calorías", f"{k_act:.0f}", f"/{meta_k:.0f}")
 c2.metric("Proteína", f"{p_act:.1f}g", f"/{meta_p:.0f}g")
@@ -102,4 +90,47 @@ t1, t2 = st.tabs(["📈 ANÁLISIS", "🍽️ REGISTRO"])
 
 with t1:
     if k_act > 0:
-        fig = px.
+        # LÍNEA 105 CORREGIDA TOTALMENTE
+        fig = px.pie(values=[p_act*4, abs(k_act-(p_act*4)-400), 400], 
+                     names=['Prot', 'Carb', 'Gras'], 
+                     hole=0.4, template="plotly_dark")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Sin registros hoy.")
+
+with t2:
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.subheader("📸 Foto IA")
+        foto = st.file_uploader("Sube plato", type=["jpg","jpeg","png"])
+        if foto and st.button("🔍 ANALIZAR"):
+            with st.spinner("🤖 Analizando..."):
+                try:
+                    img = base64.b64encode(foto.read()).decode()
+                    pld = {"contents":[{"parts":[{"text":"Nombre|Kcal|Prot|Carb|Gras"},{"inline_data":{"mime_type":"image/jpeg","data":img}}]}]}
+                    r = requests.post(URL_AI, json=pld).json()
+                    d = r['candidates'][0]['content']['parts'][0]['text'].strip().split('|')
+                    supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":d[0], "kcal":float(d[1]), "proteina":float(d[2]), "semana":inicio_sem}).execute()
+                    st.rerun()
+                except: st.error("Error IA.")
+    with col_b:
+        st.subheader("✍️ Manual")
+        with st.form("m"):
+            com = st.text_input("Comida")
+            pr = st.number_input("Prot (g)", 0.0)
+            kc = st.number_input("Kcal", 0.0)
+            if st.form_submit_button("💾 GUARDAR"):
+                supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":com, "kcal":kc, "proteina":pr, "semana":inicio_sem}).execute()
+                st.rerun()
+
+if btn_vigilar and target:
+    st.divider()
+    st.header(f"🕵️ Reporte: {target}")
+    res_t = supabase.table('registros_comida').select('*').eq('usuario', target.strip()).eq('semana', inicio_sem).execute()
+    if res_t.data:
+        df_t = pd.DataFrame(res_t.data)
+        df_t['f'] = pd.to_datetime(df_t['created_at']).dt.date
+        hoy_t = df_t[df_t['f'] == hoy.date()]
+        st.metric(f"Proteína de {target}", f"{hoy_t['proteina'].sum():.1f}g")
+        st.table(hoy_t[['comida', 'proteina', 'kcal']])
+    else: st.error("Discípulo no encontrado.")
