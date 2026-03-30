@@ -34,9 +34,22 @@ if 'u_nom' not in st.session_state:
             st.rerun()
     st.stop()
 
-# --- 3. LÓGICA DE METAS Y PASOS ---
+# --- 3. LÓGICA DE METAS Y HORARIO ---
 hoy = datetime.now()
+dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+dia_nombre = dias_semana[hoy.weekday()]
 inicio_sem = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
+
+rutina = {
+    "Lunes": "🍗 Piernas / Glúteos (Enfoque Hipertrofia)",
+    "Martes": "👕 Pecho / Tríceps / Hombros",
+    "Miércoles": "🔙 Espalda / Bíceps",
+    "Jueves": "🍗 Piernas / Glúteos (Repetición)",
+    "Viernes": "⚽ Fútbol / Cardio Intenso",
+    "Sábado": "👕 Pecho / Tríceps / Hombros (o Repetición)",
+    "Domingo": "🛌 Descanso Total (Rest Day)"
+}
+
 if 'h2o' not in st.session_state: st.session_state.h2o = 0.0
 if 'steps' not in st.session_state: st.session_state.steps = 0
 
@@ -51,8 +64,9 @@ kcal_pasos = (st.session_state.steps / 1000) * 38
 # --- 4. SIDEBAR ---
 with st.sidebar:
     st.title(f"👑 Perfil: {st.session_state.u_nom}")
+    st.info(f"📅 Hoy es **{dia_nombre}**\n\n🎯 Tarea: {rutina.get(dia_nombre)}")
     st.divider()
-    st.subheader("👣 Actividad Diaria")
+    st.subheader("👣 Actividad")
     st.session_state.steps = st.number_input("Pasos:", 0, 50000, st.session_state.steps, step=500)
     st.write(f"🔥 Quemado: **{kcal_pasos:.0f} kcal**")
     
@@ -69,11 +83,10 @@ with st.sidebar:
         st.subheader("🕵️ Panel Maestro")
         target = st.text_input("Vigilar Discípulo:", placeholder="Nombre")
         btn_vigilar = st.button("👁️ Rastrear")
-    else:
-        btn_vigilar = False
+    else: btn_vigilar = False
 
 # --- 5. DASHBOARD PRINCIPAL ---
-st.title(f"📊 Dashboard Nutricional")
+st.title(f"📊 Dashboard: {st.session_state.u_nom}")
 p_act, k_act = 0.0, 0.0
 try:
     res = supabase.table('registros_comida').select('*').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
@@ -84,72 +97,68 @@ try:
         k_act, p_act = hoy_df['kcal'].sum(), hoy_df['proteina'].sum()
 except: pass
 
-c_act = (k_act * 0.5) / 4
-g_act = (k_act * 0.25) / 9
-
 st.subheader(f"Objetivo: {obj_act}")
 cm1, cm2, cm3, cm4 = st.columns(4)
-with cm1:
-    st.write(f"🔥 Kcal: {k_act:.0f}/{meta_k:.0f}")
-    st.progress(min(k_act/meta_k, 1.0))
-with cm2:
-    st.write(f"🍗 Prot: {p_act:.1f}/{meta_p:.0f}g")
-    st.progress(min(p_act/meta_p, 1.0))
-with cm3:
-    st.write(f"🍚 Carb: {c_act:.1f}/{meta_c:.0f}g")
-    st.progress(min(c_act/meta_c, 1.0))
-with cm4:
-    st.write(f"🥑 Gras: {g_act:.1f}/{meta_g:.0f}g")
-    st.progress(min(g_act/meta_g, 1.0))
+with cm1: st.metric("Kcal", f"{k_act:.0f}/{meta_k:.0f}")
+with cm2: st.metric("Prot", f"{p_act:.1f}g", f"/{meta_p:.0f}g")
+with cm3: st.metric("Gasto Pasos", f"{kcal_pasos:.0f}")
+with cm4: st.metric("Balance Neto", f"{(k_act - kcal_pasos):.0f}")
 
-t1, t2 = st.tabs(["📈 ANÁLISIS", "🍽️ REGISTRO"])
+t1, t2, t3 = st.tabs(["🍽️ REGISTRO", "📈 ANÁLISIS", "📅 HORARIO"])
 
-with t2:
+with t1:
     col_a, col_b = st.columns(2)
     with col_a:
-        st.subheader("📸 Foto IA")
-        foto = st.file_uploader("Sube plato", type=["jpg","jpeg","png"])
-        if foto and st.button("🔍 ANALIZAR"):
-            with st.spinner("🤖 Analizando..."):
+        st.subheader("📸 Foto IA (Análisis)")
+        foto = st.file_uploader("Sube tu plato", type=["jpg","png","jpeg"])
+        if foto and st.button("🔍 ANALIZAR COMIDA"):
+            with st.spinner("🤖 Jarvis procesando..."):
                 try:
-                    img_data = base64.b64encode(foto.read()).decode()
-                    # PROMPT REFORZADO:
-                    prompt = "Analiza la imagen. Responde SOLO con el formato: Nombre|Calorias|Proteina. Ejemplo: Arroz con pollo|450|25"
-                    payload = {"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":"image/jpeg","data":img_data}}]}]}
+                    img_b64 = base64.b64encode(foto.read()).decode()
+                    # PROMPT TÉCNICO REFORZADO
+                    prompt = "Analiza esta comida. Responde UNICAMENTE en este formato exacto: Nombre|Calorias|Proteina. Ejemplo: Arroz con pollo|500|30"
+                    payload = {"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
                     r = requests.post(URL_AI, json=payload).json()
                     
                     if 'candidates' in r and r['candidates']:
-                        res_raw = r['candidates'][0]['content']['parts'][0]['text'].strip()
-                        # LIMPIEZA AGRESIVA:
-                        partes = res_raw.split('|')
+                        texto = r['candidates'][0]['content']['parts'][0]['text'].strip()
+                        partes = texto.split('|')
                         if len(partes) >= 3:
                             nom_c = partes[0].strip()
-                            # Extrae solo números (ignora 'kcal', 'g', '*', etc.)
-                            k_v = float(re.findall(r"[-+]?\d*\.\d+|\d+", partes[1])[0])
-                            p_v = float(re.findall(r"[-+]?\d*\.\d+|\d+", partes[2])[0])
+                            # Captura de números con mayor precisión
+                            k_v = float(re.findall(r"\d+\.?\d*", partes[1])[0])
+                            p_v = float(re.findall(r"\d+\.?\d*", partes[2])[0])
                             
                             supabase.table('registros_comida').insert({
-                                "usuario": st.session_state.u_nom, 
-                                "comida": nom_c, 
-                                "kcal": k_v, 
-                                "proteina": p_v, 
-                                "semana": inicio_sem
+                                "usuario": st.session_state.u_nom, "comida": nom_c, 
+                                "kcal": k_v, "proteina": p_v, "semana": inicio_sem
                             }).execute()
-                            st.success(f"✅ Guardado: {nom_c}")
+                            st.success(f"✅ Registrado: {nom_c}")
                             st.rerun()
-                    else:
-                        st.error("IA no respondió. Intenta de nuevo.")
-                except Exception as e:
-                    st.error(f"Error técnico: {str(e)[:40]}")
+                    else: st.error("⚠️ La IA no devolvió datos. Intenta subir la foto otra vez.")
+                except Exception as e: st.error(f"Error de análisis: {e}")
+
     with col_b:
-        st.subheader("✍️ Manual")
-        with st.form("manual_reg"):
+        st.subheader("✍️ Registro Manual")
+        with st.form("man"):
             c_m = st.text_input("Comida")
-            p_m = st.number_input("Prot (g)", 0.0)
-            k_m = st.number_input("Kcal", 0.0)
+            p_m = st.number_input("Proteína (g)", 0.0)
+            k_m = st.number_input("Calorías", 0.0)
             if st.form_submit_button("💾 GUARDAR"):
                 supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":c_m, "kcal":k_m, "proteina":p_m, "semana":inicio_sem}).execute()
                 st.rerun()
+
+with t2:
+    if k_act > 0:
+        fig = px.pie(values=[p_act*4, (k_act*0.5), (k_act*0.25)], names=['Prot', 'Carb', 'Gras'], hole=0.4, template="plotly_dark")
+        st.plotly_chart(fig, use_container_width=True)
+    else: st.info("Registra comida para ver el análisis de macros.")
+
+with t3:
+    st.subheader("🗓️ Tu Plan Maestro Semanal")
+    df_rutina = pd.DataFrame(list(rutina.items()), columns=["Día", "Entrenamiento / Actividad"])
+    st.table(df_rutina)
+    st.info("💡 Recuerda: Los viernes de fútbol el gasto calórico es mayor. ¡Asegúrate de comer lo suficiente!")
 
 # --- 6. VIGILANCIA ---
 if btn_vigilar and target:
@@ -158,9 +167,7 @@ if btn_vigilar and target:
     try:
         res_t = supabase.table('registros_comida').select('*').eq('usuario', target.strip()).eq('semana', inicio_sem).execute()
         if res_t.data:
-            df_t = pd.DataFrame(res_t.data)
-            df_t['f'] = pd.to_datetime(df_t['created_at']).dt.date
-            hoy_t = df_t[df_t['f'] == hoy.date()]
-            st.metric(f"Proteína de {target}", f"{hoy_t['proteina'].sum():.1f}g")
-            st.table(hoy_t[['comida', 'proteina', 'kcal']])
-    except: st.error("Error al buscar.")
+            dt = pd.DataFrame(res_t.data)
+            st.metric(f"Proteína de {target}", f"{dt['proteina'].sum():.1f}g")
+            st.table(dt[['comida', 'proteina', 'kcal']])
+    except: st.error("Error al buscar discípulo.")
