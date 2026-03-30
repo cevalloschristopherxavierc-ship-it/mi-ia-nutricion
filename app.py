@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from supabase import create_client, Client
 
-# --- 1. NÚCLEO Y DISEÑO ---
+# --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="Jarvis OS | Xavier", layout="wide", page_icon="🦾")
 
 st.markdown("""
@@ -25,18 +25,16 @@ def init_connection():
 
 supabase = init_connection()
 
-# --- 2. FUNCIÓN DE VERIFICACIÓN (La IA que vigila el código) ---
-def verificar_datos(texto_ia):
-    """Escanea el texto y extrae números de forma segura."""
-    nums = re.findall(r"\d+\.?\d*", texto_ia)
+# --- 2. MOTOR DE VERIFICACIÓN ---
+def extraer_macros(texto):
+    """Extrae números de forma ultra-flexible."""
+    nums = re.findall(r"\d+\.?\d*", texto)
     if len(nums) >= 2:
-        val_1 = float(nums[0])
-        val_2 = float(nums[1])
-        # Lógica: El número más grande siempre son las Calorías
-        return max(val_1, val_2), min(val_1, val_2)
+        vals = [float(n) for n in nums]
+        return max(vals), min(vals) # Caloría es el mayor, Prot el menor
     return None, None
 
-# --- 3. SESIÓN Y METAS (63kg) ---
+# --- 3. SESIÓN ---
 if 'u_nom' not in st.session_state:
     st.title("🦾 Activación Protocolo Jarvis")
     with st.form("p_ini"):
@@ -50,6 +48,7 @@ if 'u_nom' not in st.session_state:
             st.rerun()
     st.stop()
 
+# --- 4. METAS ---
 hoy = datetime.now()
 ini_s = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 meta_k = 3200.0 if st.session_state.u_obj == "Fútbol" else 2750.0
@@ -57,7 +56,7 @@ meta_p = st.session_state.u_pes * 2.2
 meta_g = (meta_k * 0.25) / 9
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
 
-# --- 4. SIDEBAR ---
+# --- 5. SIDEBAR ---
 with st.sidebar:
     st.title(f"👑 {st.session_state.u_nom}")
     st.divider()
@@ -74,7 +73,7 @@ with st.sidebar:
     if st.text_input("🔐 Acceso Creador:", type="password") == "xavier2210":
         st.session_state.creador = True
 
-# --- 5. SINCRONIZACIÓN ---
+# --- 6. DATA ---
 k_act, p_act, g_act, c_act = 0.0, 0.0, 0.0, 0.0
 df_h = pd.DataFrame()
 try:
@@ -87,7 +86,7 @@ try:
         g_act, c_act = (k_act * 0.25) / 9, (k_act * 0.50) / 4
 except: pass
 
-# --- 6. DASHBOARD ---
+# --- 7. DASHBOARD ---
 st.header("📊 Centro de Mando")
 st.progress(min(k_act / meta_k, 1.0))
 m1, m2, m3, m4 = st.columns(4)
@@ -102,32 +101,30 @@ with tabs[0]:
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("📸 Escáner IA")
-        up = st.file_uploader("Foto", type=["jpg","png","jpeg"])
+        up = st.file_uploader("Subir plato", type=["jpg","png","jpeg"])
         if up and st.button("🔍 PROCESAR"):
             with st.spinner("🤖 Jarvis analizando..."):
                 try:
                     img_b64 = base64.b64encode(up.read()).decode()
+                    # Endpoint v1beta de Google (más estable)
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={st.secrets['GEMINI_API_KEY']}"
-                    payload = {"contents":[{"parts":[{"text":"Nombre, Kcal, Prot. Ejemplo: Pollo, 400, 30"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
-                    r = requests.post(url, json=payload, timeout=25).json()
-                    res_txt = r['candidates'][0]['content']['parts'][0]['text']
+                    payload = {"contents":[{"parts":[{"text":"Nombre, Kcal, Prot. Ejemplo: Manzana, 95, 0.5"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
+                    r = requests.post(url, json=payload, timeout=20)
                     
-                    # Verificación automática
-                    kcal_v, prot_v = verificar_datos(res_txt)
-                    
-                    if kcal_v is not None:
-                        nom_v = res_txt.split(',')[0].strip()[:20]
-                        supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":nom_v, "kcal":kcal_v, "proteina":prot_v, "semana":ini_s}).execute()
-                        st.success(f"✅ Detectado: {nom_v}")
-                        st.rerun()
-                    else:
-                        st.error("⚠️ La IA no devolvió números claros. Intenta de nuevo.")
-                except:
-                    st.error("⚠️ Error de conexión. Usa el registro manual.")
+                    if r.status_code == 200:
+                        res_txt = r.json()['candidates'][0]['content']['parts'][0]['text']
+                        kcal_v, prot_v = extraer_macros(res_txt)
+                        if kcal_v:
+                            nom_v = res_txt.split(',')[0].strip()[:20]
+                            supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":nom_v, "kcal":kcal_v, "proteina":prot_v, "semana":ini_s}).execute()
+                            st.rerun()
+                        else: st.warning("IA no detectó macros claros.")
+                    else: st.error("Fallo de respuesta Google.")
+                except: st.error("⚠️ Error de conexión. Use Manual.")
 
     with c2:
         st.subheader("✍️ Registro Manual")
-        with st.form("f_manual", clear_on_submit=True):
+        with st.form("f_man", clear_on_submit=True):
             in_n = st.text_input("Comida")
             in_k = st.number_input("Kcal", 0.0)
             in_p = st.number_input("Prot (g)", 0.0)
@@ -141,6 +138,3 @@ with tabs[1]:
         fig = go.Figure(go.Scatterpolar(r=[p_act/meta_p, k_act/meta_k, c_act/meta_c, g_act/meta_g], theta=['Prot', 'Kcal', 'Carb', 'Grasa'], fill='toself', line_color='#4facfe'))
         fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1.2])), template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
-
-with tabs[2]:
-    if not df_h.empty: st.table(df_h[['comida', 'kcal', 'proteina']])
