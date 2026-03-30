@@ -24,7 +24,7 @@ if 'intro' not in st.session_state:
     placeholder = st.empty()
     with placeholder.container():
         st.markdown("<h1 style='text-align: center; color: #00FF41;'>🦾 JARVIS OS</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #888;'>BY: XAVIER CEVALLOS</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #888;'>SISTEMA DE BIOMETRÍA BY: XAVIER CEVALLOS</p>", unsafe_allow_html=True)
         bar = st.progress(0)
         for i in range(101):
             bar.progress(i)
@@ -45,46 +45,76 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 4. PREGUNTAS DE INICIO (OBLIGATORIAS)
+# 4. REGISTRO COMPLETO (PREGUNTAS)
 # ==========================================
 if 'usuario' not in st.session_state:
     st.session_state.usuario = None
 
-# Si no hay usuario en sesión, mostrar SOLO el formulario
 if st.session_state.usuario is None:
-    st.markdown("<h2 style='text-align: center;'>📝 REGISTRO DE AGENTE</h2>", unsafe_allow_html=True)
-    with st.form("registro_obligatorio"):
-        nombre = st.text_input("¿Cuál es tu nombre?")
-        peso = st.number_input("¿Cuál es tu peso (kg)?", min_value=30.0, value=63.0)
-        enviar = st.form_submit_button("ACTIVAR SISTEMA 🚀")
+    st.markdown("<h2 style='text-align: center;'>📋 REGISTRO DE PERFIL</h2>", unsafe_allow_html=True)
+    with st.form("registro_completo"):
+        col1, col2 = st.columns(2)
+        with col1:
+            nombre = st.text_input("Nombre:")
+            edad = st.number_input("Edad:", min_value=10, max_value=100, value=20)
+        with col2:
+            peso = st.number_input("Peso (kg):", min_value=30.0, value=63.0)
+            altura = st.number_input("Altura (cm):", min_value=100, max_value=250, value=170)
+        
+        enviar = st.form_submit_button("SINCRONIZAR CON JARVIS 🚀")
         
         if enviar:
             if nombre:
+                # Cálculos automáticos
                 meta_p = peso * 2
+                imc = round(peso / ((altura/100)**2), 1)
+                
                 # Guardar en base de datos
                 try:
-                    supabase.table('usuarios').insert({"nombre": nombre, "peso": peso, "meta_proteina": meta_p}).execute()
+                    user_data = {
+                        "nombre": nombre, 
+                        "peso": peso, 
+                        "altura": altura, 
+                        "edad": edad, 
+                        "meta_proteina": meta_p
+                    }
+                    supabase.table('usuarios').insert(user_data).execute()
                 except: pass
                 
-                st.session_state.usuario = {"nombre": nombre, "peso": peso, "meta": meta_p}
-                st.rerun() # Aquí usamos el rerun que mencionaste para refrescar
+                st.session_state.usuario = {"nombre": nombre, "peso": peso, "altura": altura, "meta": meta_p, "imc": imc}
+                st.rerun()
             else:
                 st.error("⚠️ El nombre es obligatorio.")
-    st.stop() # DETIENE TODO AQUÍ hasta que se registren
+    st.stop()
 
 # ==========================================
-# 5. INTERFAZ TRAS EL REGISTRO (ESCÁNER)
+# 5. INTERFAZ PRINCIPAL (ESCÁNER)
 # ==========================================
 u = st.session_state.usuario
 
 with st.sidebar:
-    st.title("📂 SESIÓN")
+    st.title("📂 BIOMETRÍA")
     st.success(f"AGENTE: {u['nombre'].upper()}")
-    st.write(f"⚖️ Peso: {u['peso']}kg")
-    st.write(f"🍗 Meta: {u['meta']}g Prot")
+    st.write(f"⚖️ Peso: {u['peso']} kg")
+    st.write(f"📏 Altura: {u['altura']} cm")
+    st.write(f"📊 IMC: {u['imc']}")
+    st.divider()
+    st.write(f"🎯 **Meta Proteína: {u['meta']}g**")
     
-    # MODO CREADOR XAVIER
     if "xavier" in u['nombre'].lower():
         st.divider()
         st.markdown("### 👑 MODO CREADOR")
-        if st.button("📊 VER USUARIOS"):
+        if st.button("📊 VER TODOS LOS USUARIOS"):
+            res = supabase.table('usuarios').select('*').execute()
+            st.dataframe(res.data)
+            
+    if st.button("🚪 CERRAR SESIÓN"):
+        st.session_state.usuario = None
+        st.rerun()
+
+st.subheader("📸 ESCÁNER NUTRICIONAL")
+f = st.file_uploader("Sube la foto de tu comida", type=["jpg", "png", "jpeg"])
+
+if f:
+    img_b64 = base64.b64encode(f.read()).decode('utf-8')
+    st.image(f, use_container_width=True)
