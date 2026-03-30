@@ -17,7 +17,7 @@ try:
     URL_AI = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={G_KEY}"
     supabase: Client = create_client(S_URL, S_KEY)
 except:
-    st.error("⚠️ Revisa los Secrets en Streamlit Cloud.")
+    st.error("⚠️ Configura los Secrets en Streamlit Cloud.")
     st.stop()
 
 # --- 3. ESTILOS ---
@@ -40,7 +40,7 @@ with st.sidebar:
     progreso = min(st.session_state.kcal_total / meta, 1.0)
     st.write(f"🔥 Progreso: {int(progreso * 100)}%")
     st.progress(progreso)
-    if st.button("🔄 Reiniciar"):
+    if st.button("🔄 Reiniciar Día"):
         st.session_state.kcal_total = 0.0
         st.rerun()
 
@@ -67,7 +67,30 @@ with t2:
         if foto:
             img_b64 = base64.b64encode(foto.read()).decode('utf-8')
             st.image(foto, width=200)
-            # LÍNEA 79 CORREGIDA (BLOQUE INDENTADO):
             if st.button("🔍 ESCANEAR"):
                 with st.spinner("🤖 Analizando..."):
-                    payload = {"contents": [{"parts": [{"text": "Responde:
+                    # LÍNEA 73 CORREGIDA Y PROTEGIDA:
+                    instruccion = "Responde solo: Nombre|Kcal|Prot|Carb|Gras"
+                    payload = {"contents": [{"parts": [{"text": instruccion}, {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}]}]}
+                    try:
+                        r = requests.post(URL_AI, json=payload).json()
+                        res = r['candidates'][0]['content']['parts'][0]['text'].split('|')
+                        comida = {"n": res[0], "k": float(res[1]), "p": res[2], "c": res[3], "g": res[4]}
+                    except:
+                        st.error("Error en la conexión con la IA.")
+
+    with col_t:
+        st.subheader("✍️ Manual")
+        with st.form("registro_manual"):
+            m_n = st.text_input("Nombre del plato:")
+            m_k = st.number_input("Calorías:", min_value=0.0)
+            m_p = st.text_input("Proteína (g):", "0")
+            if st.form_submit_button("REGISTRAR AHORA"):
+                comida = {"n": m_n, "k": m_k, "p": m_p, "c": "0", "g": "0"}
+
+    if comida:
+        st.session_state.kcal_total += comida['k']
+        try:
+            supabase.table('registros_comida').insert({"usuario": agente, "comida": comida['n'], "kcal": comida['k'], "proteina": comida['p']}).execute()
+            st.success("✅ Guardado en Supabase")
+        except: pass
