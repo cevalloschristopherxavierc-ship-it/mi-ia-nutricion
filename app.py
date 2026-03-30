@@ -7,7 +7,7 @@ API_KEY = st.secrets.get("GEMINI_API_KEY")
 
 st.set_page_config(page_title="FitIA Pro", layout="centered", page_icon="🥗")
 
-# Estilo visual de la App
+# Estilo visual
 st.markdown("# 🥗 Jarvis Nutrición Pro")
 st.info("📍 Portoviejo | 👤 170cm | ⚖️ 63kg")
 
@@ -19,10 +19,10 @@ if f:
     st.image(img_bytes, use_container_width=True, caption="Plato listo para análisis")
     
     if st.button("🔍 ANALIZAR MACROS"):
-        with st.spinner("🤖 Jarvis activando motor 1.5-Flash-8B..."):
+        with st.spinner("🤖 Jarvis activando motor Gemini 2.5 Flash..."):
             try:
-                # Usamos el modelo 1.5-flash-8b (El más estable de tu lista)
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key={API_KEY}"
+                # USAMOS EL MODELO #0 DE TU LISTA: gemini-2.5-flash
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
                 
                 b64_img = base64.b64encode(img_bytes).decode('utf-8')
                 
@@ -44,10 +44,10 @@ if f:
                     stats = texto.split('|')
                     
                     if len(stats) >= 5:
-                        st.balloons() # ¡Celebración!
+                        st.balloons() 
                         st.success(f"🍴 Plato detectado: **{stats[0]}**")
                         
-                        # Columnas para los Macros
+                        # Mostrar métricas
                         c1, c2, c3, c4 = st.columns(4)
                         c1.metric("🔥 Kcal", stats[1])
                         c2.metric("🍗 Prot", f"{stats[2]}g")
@@ -55,13 +55,13 @@ if f:
                         c4.metric("🥑 Gras", f"{stats[4]}g")
                         
                         st.divider()
-                        st.caption(" Jarvis está listo para ayudarte con tu hipertrofia.")
+                        st.caption(" Jarvis está listo para tu entrenamiento de hoy.")
                     else:
                         st.warning(f"Respuesta inesperada: {texto}")
                 
                 elif 'error' in data:
                     if data['error']['code'] == 429:
-                        st.warning("⏳ Google sigue procesando tu nueva cuota. Espera 30 segundos exactos y dale al botón de nuevo.")
+                        st.warning("⏳ Google está terminando de asignar tu cuota 2.5. Espera 30 segundos y presiona el botón de nuevo.")
                     else:
                         st.error(f"Error {data['error']['code']}: {data['error']['message']}")
                 
