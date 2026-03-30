@@ -32,121 +32,77 @@ if 'u_nom' not in st.session_state:
             st.rerun()
     st.stop()
 
-# --- 3. LÓGICA DE METAS Y HORARIOS (BUCLE SEMANAL) ---
+# --- 3. LÓGICA DE METAS Y TIEMPO ---
 hoy = datetime.now()
 dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 dia_hoy = dias[hoy.weekday()]
 inicio_sem = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 
-plan_comida = {
-    "Lunes": "🍳 Desayuno: Huevos + Avena | 🍗 Almuerzo: Pollo + Arroz + Aguacate | 🐟 Cena: Pescado + Ensalada",
-    "Martes": "🥤 Desayuno: Batido Proteína + Banano | 🥩 Almuerzo: Carne Res + Pasta | 🍗 Cena: Pollo + Camote",
-    "Miércoles": "🍳 Desayuno: Tortilla de claras | 🦃 Almuerzo: Pavo + Arroz Integral | 🐟 Cena: Atún + Ensalada Verde",
-    "Jueves": "🥣 Desayuno: Yogur Griego + Frutos Secos | 🍗 Almuerzo: Pollo + Lentejas | 🍳 Cena: Huevos + Pan Integral",
-    "Viernes": "🥣 Desayuno: Avena + Fruta (Carga Fútbol) | 🍝 Almuerzo: Pasta Carbonara | 🥤 Cena: Batido Post-Partido",
-    "Sábado": "🥞 Desayuno: Pancakes Avena | 🐟 Almuerzo: Salmón/Pescado + Papas | 🍗 Cena: Pollo a la plancha",
-    "Domingo": "🥗 Día Libre (Cumplir Macros base)"
-}
-
 plan_entreno = {
-    "Lunes": "🍗 Piernas / Glúteos (Fuerza)",
-    "Martes": "👕 Pecho / Tríceps / Hombros",
-    "Miércoles": "🔙 Espalda / Bíceps",
-    "Jueves": "🍗 Piernas / Glúteos (Hipertrofia)",
-    "Viernes": "⚽ Fútbol / Cardio Explosivo",
-    "Sábado": "👕 Torso Superior (Repetición)",
-    "Domingo": "🛌 Descanso Activo / Estiramientos"
+    "Lunes": "🍗 Piernas / Glúteos (Fuerza)", "Martes": "👕 Pecho / Tríceps / Hombros",
+    "Miércoles": "🔙 Espalda / Bíceps", "Jueves": "🍗 Piernas / Glúteos (Hipertrofia)",
+    "Viernes": "⚽ Fútbol / Cardio Explosivo", "Sábado": "👕 Torso Superior", "Domingo": "🛌 Descanso"
 }
 
-obj_act = st.session_state.u_obj
-meta_k = 3200.0 if obj_act == "Fútbol" else 2750.0
+meta_k = 3200.0 if st.session_state.u_obj == "Fútbol" else 2750.0
 meta_p = st.session_state.u_pes * 2.2 
 meta_g = (meta_k * 0.25) / 9
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
-kcal_pasos = (st.session_state.get('steps', 0) / 1000) * 38
 
 # --- 4. SIDEBAR ---
 with st.sidebar:
     st.title(f"👑 Maestro: {st.session_state.u_nom}")
     st.info(f"📅 **{dia_hoy}**\n\n💪 {plan_entreno[dia_hoy]}")
-    st.divider()
-    st.subheader("👣 Actividad")
-    st.session_state.steps = st.number_input("Pasos hoy:", 0, 50000, st.session_state.get('steps', 0), step=500)
+    st.session_state.steps = st.number_input("👣 Pasos hoy:", 0, 50000, st.session_state.get('steps', 0), step=500)
     if st.button("🔄 Reiniciar"):
         st.session_state.clear()
         st.rerun()
 
-# --- 5. DASHBOARD PRINCIPAL ---
-st.title(f"📊 Dashboard Nutricional")
-p_act, k_act = 0.0, 0.0
+# --- 5. OBTENCIÓN DE DATOS REALES ---
+p_act, k_act, c_act, g_act = 0.0, 0.0, 0.0, 0.0
+df_hoy = pd.DataFrame()
 try:
     res = supabase.table('registros_comida').select('*').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
     if res.data:
-        df = pd.DataFrame(res.data)
-        df['f'] = pd.to_datetime(df['created_at']).dt.date
-        hoy_df = df[df['f'] == hoy.date()]
-        k_act, p_act = hoy_df['kcal'].sum(), hoy_df['proteina'].sum()
+        df_all = pd.DataFrame(res.data)
+        df_all['fecha'] = pd.to_datetime(df_all['created_at']).dt.date
+        df_hoy = df_all[df_all['fecha'] == hoy.date()]
+        k_act, p_act = df_hoy['kcal'].sum(), df_hoy['proteina'].sum()
+        c_act, g_act = (k_act * 0.5) / 4, (k_act * 0.25) / 9
 except: pass
 
-# Macros dinámicos (50% Carb, 25% Gras)
-c_act, g_act = (k_act * 0.5) / 4, (k_act * 0.25) / 9
-
+# --- DASHBOARD ---
+st.title(f"📊 Dashboard Nutricional")
 c1, c2, c3, c4 = st.columns(4)
-with c1:
-    st.write(f"🔥 **Kcal:** {k_act:.0f}/{meta_k:.0f}")
-    st.progress(min(k_act/meta_k, 1.0))
-with c2:
-    st.write(f"🍗 **Prot:** {p_act:.1f}/{meta_p:.0f}g")
-    st.progress(min(p_act/meta_p, 1.0))
-with c3:
-    st.write(f"🍚 **Carb:** {c_act:.1f}/{meta_c:.0f}g")
-    st.progress(min(c_act/meta_c, 1.0))
-with c4:
-    st.write(f"🥑 **Gras:** {g_act:.1f}/{meta_g:.0f}g")
-    st.progress(min(g_act/meta_g, 1.0))
+c1.metric("Kcal", f"{k_act:.0f}/{meta_k:.0f}")
+c2.metric("Prot", f"{p_act:.1f}g", f"/{meta_p:.0f}g")
+c3.metric("Carb", f"{c_act:.1f}g", f"/{meta_c:.0f}g")
+c4.metric("Gras", f"{g_act:.1f}g", f"/{meta_g:.0f}g")
 
-t1, t2, t3 = st.tabs(["🍽️ REGISTRO", "📈 ANÁLISIS", "📅 HORARIO MAESTRO"])
+t1, t2, t3 = st.tabs(["🍽️ REGISTRO", "📈 ANÁLISIS", "📅 DIARIO Y HORARIO"])
 
 with t1:
     col_a, col_b = st.columns(2)
     with col_a:
         st.subheader("📸 Foto IA")
-        foto = st.file_uploader("Sube tu plato", type=["jpg","png","jpeg"])
+        foto = st.file_uploader("Sube plato", type=["jpg","png","jpeg"])
         if foto and st.button("🔍 ANALIZAR"):
             with st.spinner("🤖 Jarvis analizando..."):
                 try:
-                    # CORRECCIÓN SINTAXIS LÍNEA 122:
-                    img_raw = foto.read()
-                    img_b64 = base64.b64encode(img_raw).decode()
-                    prompt = "Responde SOLO: Nombre|Calorias|Proteina. Sin nada mas de texto."
-                    payload = {"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
-                    r = requests.post(URL_AI, json=payload).json()
+                    img_b64 = base64.b64encode(foto.read()).decode()
+                    payload = {"contents":[{"parts":[{"text":"Responde SOLO: Nombre|Kcal|Proteina"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
+                    r = requests.post(URL_AI, json=payload, timeout=15).json()
                     if 'candidates' in r:
-                        texto = r['candidates'][0]['content']['parts'][0]['text'].strip()
-                        partes = texto.split('|')
+                        txt = r['candidates'][0]['content']['parts'][0]['text'].strip()
+                        partes = txt.split('|')
                         if len(partes) >= 3:
-                            k_v = float(re.findall(r"\d+", partes[1])[0])
-                            p_v = float(re.findall(r"\d+", partes[2])[0])
-                            supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":partes[0].strip(), "kcal":k_v, "proteina":p_v, "semana":inicio_sem}).execute()
+                            kv = float(re.findall(r"\d+", partes[1])[0])
+                            pv = float(re.findall(r"\d+", partes[2])[0])
+                            supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":partes[0].strip(), "kcal":kv, "proteina":pv, "semana":inicio_sem}).execute()
                             st.rerun()
-                    else: st.warning("IA sin respuesta. Intenta otra vez.")
-                except Exception as e: st.error(f"Error: {e}")
+                    else: st.warning("La IA tardó mucho. Reintenta.")
+                except: st.error("Error de conexión.")
     with col_b:
         st.subheader("✍️ Manual")
-        with st.form("manual"):
-            c_m = st.text_input("Comida")
-            p_m = st.number_input("Proteína (g)", 0.0)
-            k_m = st.number_input("Kcal", 0.0)
-            if st.form_submit_button("💾 GUARDAR"):
-                supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":c_m, "kcal":k_m, "proteina":p_m, "semana":inicio_sem}).execute()
-                st.rerun()
-
-with t2:
-    st.plotly_chart(px.pie(values=[p_act*4, c_act*4, g_act*9], names=['Prot', 'Carb', 'Gras'], hole=0.4, template="plotly_dark", title="Distribución de Macros"), use_container_width=True)
-
-with t3:
-    st.subheader(f"🍽️ Alimentación: {dia_hoy}")
-    st.success(plan_comida[dia_hoy])
-    st.divider()
-    st.subheader("🗓️ Cronograma Bucle Profesional")
-    st.table(pd.DataFrame({"Día": dias, "Entreno": [plan_entreno[d] for d in dias], "Comidas": [plan_comida[d] for d in dias]}))
+        with st.form("m"):
+            cm, pm, km = st.text_input("Comida"), st.number_input("Prot",0.0), st.number
