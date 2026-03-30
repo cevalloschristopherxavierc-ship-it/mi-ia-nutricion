@@ -5,7 +5,7 @@ import time
 from supabase import create_client, Client
 
 # ==========================================
-# 1. SEGURIDAD Y CONEXIÓN
+# 1. SEGURIDAD Y CONEXIÓN (SECRETS)
 # ==========================================
 try:
     S_URL = st.secrets["SUPABASE_URL"]
@@ -23,7 +23,7 @@ except:
 if 'intro' not in st.session_state:
     placeholder = st.empty()
     with placeholder.container():
-        st.markdown("<h1 style='text-align: center; color: #00FF41;'>🦾 JARVIS OS</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #00FF41; font-family: monospace;'>🦾 JARVIS OS</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #888;'>SISTEMA DE BIOMETRÍA BY: XAVIER CEVALLOS</p>", unsafe_allow_html=True)
         bar = st.progress(0)
         for i in range(101):
@@ -50,6 +50,7 @@ st.markdown("""
 if 'usuario' not in st.session_state:
     st.session_state.usuario = None
 
+# Si no hay usuario, mostrar FORMULARIO DE REGISTRO
 if st.session_state.usuario is None:
     st.markdown("<h2 style='text-align: center;'>📋 REGISTRO DE PERFIL</h2>", unsafe_allow_html=True)
     with st.form("registro_completo"):
@@ -65,56 +66,6 @@ if st.session_state.usuario is None:
         
         if enviar:
             if nombre:
-                # Cálculos automáticos
+                # Cálculos
                 meta_p = peso * 2
-                imc = round(peso / ((altura/100)**2), 1)
-                
-                # Guardar en base de datos
-                try:
-                    user_data = {
-                        "nombre": nombre, 
-                        "peso": peso, 
-                        "altura": altura, 
-                        "edad": edad, 
-                        "meta_proteina": meta_p
-                    }
-                    supabase.table('usuarios').insert(user_data).execute()
-                except: pass
-                
-                st.session_state.usuario = {"nombre": nombre, "peso": peso, "altura": altura, "meta": meta_p, "imc": imc}
-                st.rerun()
-            else:
-                st.error("⚠️ El nombre es obligatorio.")
-    st.stop()
-
-# ==========================================
-# 5. INTERFAZ PRINCIPAL (ESCÁNER)
-# ==========================================
-u = st.session_state.usuario
-
-with st.sidebar:
-    st.title("📂 BIOMETRÍA")
-    st.success(f"AGENTE: {u['nombre'].upper()}")
-    st.write(f"⚖️ Peso: {u['peso']} kg")
-    st.write(f"📏 Altura: {u['altura']} cm")
-    st.write(f"📊 IMC: {u['imc']}")
-    st.divider()
-    st.write(f"🎯 **Meta Proteína: {u['meta']}g**")
-    
-    if "xavier" in u['nombre'].lower():
-        st.divider()
-        st.markdown("### 👑 MODO CREADOR")
-        if st.button("📊 VER TODOS LOS USUARIOS"):
-            res = supabase.table('usuarios').select('*').execute()
-            st.dataframe(res.data)
-            
-    if st.button("🚪 CERRAR SESIÓN"):
-        st.session_state.usuario = None
-        st.rerun()
-
-st.subheader("📸 ESCÁNER NUTRICIONAL")
-f = st.file_uploader("Sube la foto de tu comida", type=["jpg", "png", "jpeg"])
-
-if f:
-    img_b64 = base64.b64encode(f.read()).decode('utf-8')
-    st.image(f, use_container_width=True)
+                imc = round(peso / ((altura/100)**2), 1
