@@ -4,7 +4,7 @@ import base64
 import time
 from supabase import create_client, Client
 
-# 1. CONFIGURACIÓN DE SEGURIDAD
+# 1. SEGURIDAD
 try:
     S_URL = st.secrets["SUPABASE_URL"]
     S_KEY = st.secrets["SUPABASE_KEY"]
@@ -15,7 +15,7 @@ except Exception as e:
     st.error("⚠️ Revisa los Secrets en Streamlit Cloud.")
     st.stop()
 
-# 2. ANIMACIÓN DE CARGA (FIRMA DE AUTOR)
+# 2. ANIMACIÓN DE CARGA
 if 'intro' not in st.session_state:
     placeholder = st.empty()
     with placeholder.container():
@@ -28,7 +28,7 @@ if 'intro' not in st.session_state:
     placeholder.empty()
     st.session_state.intro = True
 
-# 3. ESTILOS VISUALES
+# 3. ESTILOS
 st.markdown("""
 <style>
     .pizarra { background-color: #121212; border: 4px solid #3d2b1f; border-radius: 12px; padding: 20px; font-family: monospace; }
@@ -38,7 +38,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 4. LÓGICA DE REGISTRO (PREGUNTAS)
+# 4. REGISTRO (PREGUNTAS)
 if 'usuario' not in st.session_state:
     st.session_state.usuario = None
 
@@ -57,15 +57,9 @@ if st.session_state.usuario is None:
             if nombre:
                 m_p = peso * 2
                 imc = round(peso / ((altura/100)**2), 1)
-                u_data = {
-                    "nombre": nombre, "peso": peso, "altura": altura, 
-                    "edad": edad, "meta_p": m_p, "imc": imc
-                }
+                u_data = {"nombre": nombre, "peso": peso, "altura": altura, "edad": edad, "meta_p": m_p, "imc": imc}
                 try:
-                    supabase.table('usuarios').insert({
-                        "nombre": nombre, "peso": peso, "altura": altura, 
-                        "edad": edad, "meta_proteina": m_p
-                    }).execute()
+                    supabase.table('usuarios').insert({"nombre": nombre, "peso": peso, "altura": altura, "edad": edad, "meta_proteina": m_p}).execute()
                 except: pass
                 st.session_state.usuario = u_data
                 st.rerun()
@@ -81,7 +75,7 @@ with st.sidebar:
     st.write(f"⚖️ Peso: {u.get('peso')}kg | 📏 Altura: {u.get('altura')}cm")
     st.write(f"📊 IMC: {u.get('imc')}")
     st.divider()
-    st.write(f"🎯 Meta Proteína: {u.get('meta_p')}g")
+    st.write(f"🎯 Meta Proteína: {u.get('meta_p', 0)}g")
     
     if "xavier" in u.get('nombre', '').lower():
         st.divider()
@@ -95,14 +89,7 @@ with st.sidebar:
         st.rerun()
 
 st.subheader("📸 ESCÁNER NUTRICIONAL")
-# LÍNEA 98 CORREGIDA (st.file_uploader):
 foto = st.file_uploader("Sube tu comida", type=["jpg", "png", "jpeg"])
 
 if foto:
-    img_64 = base64.b64encode(foto.read()).decode('utf-8')
-    st.image(foto, use_container_width=True)
-    if st.button("🔍 ANALIZAR AHORA"):
-        with st.spinner("🤖 Analizando..."):
-            payload = {
-                "contents": [{
-                    "parts
+    img_64 = base6
