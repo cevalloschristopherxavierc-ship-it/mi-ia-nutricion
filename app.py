@@ -71,5 +71,8 @@ with st.sidebar:
 # --- 5. DASHBOARD ---
 st.title(f"📊 Dashboard Nutricional: {st.session_state.u_nom}")
 
-# Lógica de Alarma de Proteína (Línea 83 Corregida)
-p_
+# Lógica de Alarma de Proteína
+p_actual = 0.0 
+try:
+    res_c = supabase.table('registros_comida').select('proteina').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
+    if res_c.data:
