@@ -31,26 +31,44 @@ if 'u_nom' not in st.session_state:
             st.rerun()
     st.stop()
 
-# --- 3. LOGICA NUTRICIONAL (RESTAURADA) ---
+# --- 3. LOGICA NUTRICIONAL ---
 hoy = datetime.now()
 inicio_sem = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 if 'h2o' not in st.session_state: st.session_state.h2o = 0.0
 if 'steps' not in st.session_state: st.session_state.steps = 0
 
-# Cálculos científicos para Xavier (63kg)
+# Cálculos para Xavier (63kg)
 meta_k = 3200.0 if st.session_state.u_obj == "Fútbol" else 2750.0
-meta_p = st.session_state.u_pes * 2.2 # 138.6g
-meta_g = st.session_state.u_pes * 0.9 # 56.7g
+meta_p = st.session_state.u_pes * 2.2 
+meta_g = st.session_state.u_pes * 0.9 
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
-
-# Hidratación (Peso * 35ml + extra por clima/deporte)
 meta_agua = (st.session_state.u_pes * 35 / 1000) + (1.2 if st.session_state.u_obj == "Fútbol" else 0.6)
 
-# --- 4. SIDEBAR (METAS VISIBLES) ---
+# --- 4. SIDEBAR (METAS Y VIGILANCIA) ---
 with st.sidebar:
     st.title(f"👑 Maestro: {st.session_state.u_nom}")
-    st.write(f"🎯 Objetivo: **{st.session_state.u_obj}**")
     st.divider()
     
-    st.subheader("💧 Meta Hidratación")
-    st.progress(min(st.session_state
+    # Barra de Agua (Línea 56 Corregida)
+    st.subheader("💧 Hidratación")
+    prog_agua = min(st.session_state.h2o / meta_agua, 1.0)
+    st.progress(prog_agua)
+    st.write(f"Llevas: **{st.session_state.h2o:.1f}L** / {meta_agua:.1f}L")
+    if st.button("➕ Beber 500ml"): 
+        st.session_state.h2o += 0.5
+        st.rerun()
+    
+    st.divider()
+    st.subheader("📊 Metas Diarias")
+    st.info(f"🔥 Kcal: **{meta_k:.0f}**")
+    st.info(f"🍗 Prot: **{meta_p:.0f}g**")
+    
+    st.divider()
+    st.subheader("🕵️ Panel Maestro")
+    target = st.text_input("Vigilar Discípulo:", placeholder="Nombre")
+    btn_vigilar = st.button("👁️ Rastrear")
+
+# --- 5. DASHBOARD PERSONAL ---
+st.title(f"📊 Dashboard: {st.session_state.u_nom}")
+
+# Obtener
