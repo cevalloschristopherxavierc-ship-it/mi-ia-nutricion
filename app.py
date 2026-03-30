@@ -3,9 +3,8 @@ import requests, base64, re, pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from supabase import create_client, Client
-import time
 
-# --- 1. IDENTIDAD (XAVIER) ---
+# --- 1. CONFIGURACIÓN E IDENTIDAD (XAVIER 63KG) ---
 st.set_page_config(page_title="Jarvis OS | Xavier", layout="wide", page_icon="🦾")
 
 st.markdown("""
@@ -21,12 +20,12 @@ def init_connection():
     try:
         return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
     except:
-        st.error("🚨 Error de enlace con Base de Datos.")
+        st.error("🚨 Error de conexión con la Base de Datos.")
         st.stop()
 
 supabase = init_connection()
 
-# --- 2. SESIÓN ---
+# --- 2. PERFIL Y METAS (INTACTO) ---
 if 'u_nom' not in st.session_state:
     st.title("🦾 Activación Protocolo Jarvis")
     with st.form("p_ini"):
@@ -40,7 +39,6 @@ if 'u_nom' not in st.session_state:
             st.rerun()
     st.stop()
 
-# --- 3. METAS INTACTAS (63kg) ---
 hoy = datetime.now()
 ini_s = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 meta_k = 3200.0 if st.session_state.u_obj == "Fútbol" else 2750.0
@@ -48,7 +46,7 @@ meta_p = st.session_state.u_pes * 2.2
 meta_g = (meta_k * 0.25) / 9
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
 
-# --- 4. SIDEBAR ---
+# --- 3. SIDEBAR (HIDRATACIÓN 3.5L) ---
 with st.sidebar:
     st.title(f"👑 {st.session_state.u_nom}")
     st.divider()
@@ -61,24 +59,23 @@ with st.sidebar:
     st.divider()
     pas = st.number_input("👣 Pasos:", 0, 50000, 0, 500)
     st.metric("Gasto", f"{(pas/1000)*38:.0f} Kcal")
-    st.divider()
     if st.text_input("🔐 Creador:", type="password") == "xavier2210":
         st.session_state.creador = True
 
-# --- 5. DATA SYNC ---
+# --- 4. DATA SYNC ---
 k_act, p_act, g_act, c_act = 0.0, 0.0, 0.0, 0.0
 df_h = pd.DataFrame()
 try:
     res = supabase.table('registros_comida').select('*').eq('semana', ini_s).execute()
     if res.data:
-        df_a = pd.DataFrame(res.data)
-        df_a['f'] = pd.to_datetime(df_a['created_at']).dt.date
-        df_h = df_a[(df_a['usuario'] == st.session_state.u_nom) & (df_a['f'] == hoy.date())]
+        df_all = pd.DataFrame(res.data)
+        df_all['f'] = pd.to_datetime(df_all['created_at']).dt.date
+        df_h = df_all[(df_all['usuario'] == st.session_state.u_nom) & (df_all['f'] == hoy.date())]
         k_act, p_act = df_h['kcal'].sum(), df_h['proteina'].sum()
         g_act, c_act = (k_act * 0.25) / 9, (k_act * 0.50) / 4
 except: pass
 
-# --- 6. DASHBOARD ---
+# --- 5. DASHBOARD ---
 st.header("📊 Centro de Mando")
 st.progress(min(k_act / meta_k, 1.0))
 m1, m2, m3, m4 = st.columns(4)
@@ -87,36 +84,29 @@ m2.metric("🍗 Prot", f"{p_act:.1f}/{meta_p:.1f}g")
 m3.metric("🥑 Grasa", f"{g_act:.1f}/{meta_g:.1f}g")
 m4.metric("🍚 Carb", f"{c_act:.0f}/{meta_c:.0f}g")
 
-tabs = st.tabs(["🍽️ REGISTRO", "💪 ANÁLISIS", "📅 HISTORIAL", "🕵️ CREADOR"])
+tabs = st.tabs(["🍽️ REGISTRO", "💪 ANÁLISIS", "📅 HISTORIAL"])
 
 with tabs[0]:
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("📸 Escáner IA")
         up = st.file_uploader("Foto", type=["jpg","png","jpeg"])
-        if up and st.button("🔍 PROCESAR"):
-            with st.spinner("🤖 Jarvis reconectando..."):
+        if up and st.button("🔍 ANALIZAR"):
+            with st.spinner("🤖 Jarvis procesando..."):
                 try:
                     img_b64 = base64.b64encode(up.read()).decode()
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={st.secrets['GEMINI_API_KEY']}"
-                    payload = {"contents":[{"parts":[{"text":"Nombre, Kcal, Prot. Ejemplo: Pollo, 400, 30"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
-                    
-                    # --- LÓGICA DE REINTENTO ---
-                    for i in range(2): # Lo intenta hasta 2 veces
-                        r = requests.post(url, json=payload, timeout=25)
-                        if r.status_code == 200:
-                            res_txt = r.json()['candidates'][0]['content']['parts'][0]['text']
-                            nums = re.findall(r"\d+\.?\d*", res_txt)
-                            if len(nums) >= 2:
-                                vals = [float(n) for n in nums]
-                                k_v, p_v = max(vals), min(vals)
-                                nom_v = res_txt.split(',')[0].strip()[:20]
-                                supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":nom_v, "kcal":k_v, "proteina":p_v, "semana":ini_s}).execute()
-                                st.rerun()
-                                break
-                        time.sleep(2) # Espera 2 segundos antes de reintentar
-                    else: st.error("⚠️ Google no responde. Use Manual.")
-                except: st.error("⚠️ Error de Red. Use Manual.")
+                    payload = {"contents":[{"parts":[{"text":"Responde solo: Comida, Calorias, Proteina"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
+                    r = requests.post(url, json=payload, timeout=20)
+                    if r.status_code == 200:
+                        res_txt = r.json()['candidates'][0]['content']['parts'][0]['text']
+                        nums = re.findall(r"\d+\.?\d*", res_txt)
+                        if len(nums) >= 2:
+                            vals = [float(n) for n in nums]
+                            supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":"IA Scan", "kcal":max(vals), "proteina":min(vals), "semana":ini_s}).execute()
+                            st.rerun()
+                    else: st.error("⚠️ Error de API. Revisa tu nueva Key.")
+                except: st.error("⚠️ Error de Conexión.")
 
     with c2:
         st.subheader("✍️ Registro Manual")
@@ -134,3 +124,6 @@ with tabs[1]:
         fig = go.Figure(go.Scatterpolar(r=[p_act/meta_p, k_act/meta_k, c_act/meta_c, g_act/meta_g], theta=['Prot', 'Kcal', 'Carb', 'Grasa'], fill='toself', line_color='#4facfe'))
         fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1.2])), template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
+
+with tabs[2]:
+    if not df_h.empty: st.table(df_h[['comida', 'kcal', 'proteina']])
