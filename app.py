@@ -16,22 +16,22 @@ try:
     URL_AI = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={G_KEY}"
     supabase: Client = create_client(S_URL, S_KEY)
 except Exception:
-    st.error("🚨 Error de Secrets. Verifica Supabase y Gemini.")
+    st.error("🚨 Revisa los Secrets en Streamlit.")
     st.stop()
 
-# --- 2. PERFIL Y SESIÓN ---
+# --- 2. SESIÓN ---
 if 'u_nom' not in st.session_state:
-    st.title("🦾 Protocolo de Inicio Jarvis")
-    with st.form("registro"):
+    st.title("🦾 Activación Jarvis")
+    with st.form("reg"):
         nom = st.text_input("Usuario:", "Xavier")
         pes = st.number_input("Peso (kg):", 30.0, 150.0, 63.0)
         obj = st.selectbox("Objetivo:", ["Hipertrofia", "Fútbol", "Definición"])
-        if st.form_submit_button("🚀 ACCEDER"):
+        if st.form_submit_button("🚀 ENTRAR"):
             st.session_state.u_nom, st.session_state.u_pes, st.session_state.u_obj = nom.strip(), pes, obj
             st.rerun()
     st.stop()
 
-# --- 3. TIEMPO Y RUTINA ---
+# --- 3. RUTINA Y METAS ---
 hoy = datetime.now()
 dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 dia_hoy = dias[hoy.weekday()]
@@ -54,21 +54,19 @@ if 'pasos' not in st.session_state: st.session_state.pasos = 0
 
 # --- 4. SIDEBAR ---
 with st.sidebar:
-    st.title(f"👑 Creador: {st.session_state.u_nom}")
-    st.info(f"🏋️ **Hoy:** {rutina[dia_hoy]['ent']}")
+    st.title(f"👑 {st.session_state.u_nom}")
+    st.info(f"🏋️ {rutina[dia_hoy]['ent']}")
     st.subheader("💧 Agua")
-    ca1, ca2 = st.columns(2)
-    if ca1.button("➕ 0.5L"): st.session_state.agua += 0.5; st.rerun()
-    if ca2.button("🧹 Reset"): st.session_state.agua = 0.0; st.rerun()
+    c1, c2 = st.columns(2)
+    if c1.button("➕ 0.5L"): st.session_state.agua += 0.5; st.rerun()
+    if c2.button("🧹 Reset"): st.session_state.agua = 0.0; st.rerun()
     st.write(f"Total: **{st.session_state.agua}L**")
-    st.subheader("👣 Pasos")
-    st.session_state.pasos = st.number_input("Hoy:", 0, 50000, st.session_state.pasos, step=500)
+    st.session_state.pasos = st.number_input("👣 Pasos:", 0, 50000, st.session_state.pasos, 500)
     st.divider()
-    st.subheader("🔐 Supervisor")
-    cod = st.text_input("Código Maestro:", type="password")
+    cod = st.text_input("🔐 Código Maestro:", type="password")
     st.session_state.creador = (cod == "xavier2210")
 
-# --- 5. OBTENCIÓN DE DATA ---
+# --- 5. DATA ---
 p_act, k_act = 0.0, 0.0
 df_hoy, df_all = pd.DataFrame(), pd.DataFrame()
 try:
@@ -80,27 +78,17 @@ try:
         k_act, p_act = df_hoy['kcal'].sum(), df_hoy['proteina'].sum()
 except: pass
 
-# --- 6. DASHBOARD ---
-st.title("📊 Panel Nutricional Xavier")
-m1, m2, m3 = st.columns(3)
-m1.metric("🔥 Calorías", f"{k_act:.0f}/{meta_k}")
-m2.metric("🍗 Proteína", f"{p_act:.1f}g/{meta_p:.0f}g")
-m3.metric("🏃 Quemado", f"{(st.session_state.pasos/1000)*38:.0f} kcal")
+# --- 6. UI ---
+st.title("📊 Panel Xavier")
+col1, col2, col3 = st.columns(3)
+col1.metric("🔥 Kcal", f"{k_act:.0f}/{meta_k}")
+col2.metric("🍗 Prot", f"{p_act:.1f}g/{meta_p:.0f}g")
+col3.metric("🏃 Pasos", f"{(st.session_state.pasos/1000)*38:.0f} kcal")
 
-t1, t2, t3, t4 = st.tabs(["🍽️ REGISTRO", "📈 ANÁLISIS", "📅 HORARIO", "🕵️ SUPERVISOR"])
+t1, t2, t3, t4 = st.tabs(["🍽️ REGISTRO", "📈 ANÁLISIS", "📅 DIARIO", "🕵️ CREADOR"])
 
 with t1:
-    col_a, col_b = st.columns(2)
-    with col_a:
+    c_a, c_b = st.columns(2)
+    with c_a:
         st.subheader("📸 Foto IA")
-        foto = st.file_uploader("Sube plato", type=["jpg","png","jpeg"])
-        if foto and st.button("🔍 ANALIZAR"):
-            with st.spinner("🤖 Analizando..."):
-                try:
-                    img_b64 = base64.b64encode(foto.read()).decode()
-                    payload = {"contents": [{"parts": [{"text": "Nombre|Kcal|Prot"},{"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}]}]}
-                    r = requests.post(URL_AI, json=payload, timeout=15).json()
-                    txt = r['candidates'][0]['content']['parts'][0]['text'].strip()
-                    pts = txt.split('|')
-                    if len(pts) >= 3:
-                        kv
+        foto = st.file_uploader("S
