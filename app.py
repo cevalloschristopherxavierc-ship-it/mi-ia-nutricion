@@ -71,13 +71,5 @@ with st.sidebar:
 # --- 5. DASHBOARD ---
 st.title(f"📊 Dashboard Nutricional: {st.session_state.u_nom}")
 
-# Lógica de Alarma de Proteína
-p_actual = 0.0 
-try:
-    res_check = supabase.table('registros_comida').select('proteina').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
-    if res_check.data:
-        p_actual = sum(float(r['proteina']) for r in res_check.data)
-except: pass
-
-if hora_actual >= 16 and p_actual < (meta_p * 0.6): 
-    st.error(f"🚨 **ALERTA JARVIS:** Xavier, vas bajo en proteína ({p_actual:.0f}g de {meta_
+# Lógica de Alarma de Proteína (Línea 83 Corregida)
+p_
