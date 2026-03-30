@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from supabase import create_client, Client
 
-# --- 1. CONFIGURACIÓN XAVIER (ESTILO JARVIS) ---
+# --- 1. IDENTIDAD JARVIS (XAVIER 63KG) ---
 st.set_page_config(page_title="Jarvis OS | Xavier", layout="wide", page_icon="🦾")
 
 st.markdown("""
@@ -21,7 +21,7 @@ def init_connection():
 
 supabase = init_connection()
 
-# --- 2. SESIÓN (63KG - PORTOVIEJO) ---
+# --- 2. SESIÓN Y METAS ---
 if 'u_nom' not in st.session_state:
     st.title("🦾 Activación Protocolo Jarvis")
     with st.form("p_ini"):
@@ -35,17 +35,17 @@ if 'u_nom' not in st.session_state:
             st.rerun()
     st.stop()
 
-# --- 3. METAS DINÁMICAS (RESTAURADAS) ---
+# Cálculos Exactos
 meta_k = 3200.0 if st.session_state.u_obj == "Fútbol" else 2750.0
-meta_p = st.session_state.u_pes * 2.2 # 138.6g para 63kg
+meta_p = st.session_state.u_pes * 2.2 # 138.6g
 meta_g = (meta_k * 0.25) / 9
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
 
-# --- 4. SIDEBAR (DETALLES COMPLETOS) ---
+# --- 3. SIDEBAR (DETALLES RESTAURADOS) ---
 with st.sidebar:
     st.title(f"👑 {st.session_state.u_nom}")
     st.divider()
-    st.subheader("💧 Hidratación (Meta 3.5L)")
+    st.subheader("💧 Hidratación (3.5L)")
     st.progress(min(st.session_state.h2o / 3.5, 1.0))
     st.write(f"Nivel: **{st.session_state.h2o:.1f}L**")
     if st.button("➕ 0.5L"): 
@@ -57,7 +57,7 @@ with st.sidebar:
     if st.text_input("🔐 Creador:", type="password") == "xavier2210":
         st.session_state.creador = True
 
-# --- 5. SINCRONIZACIÓN Y CÁLCULOS ---
+# --- 4. DATA SYNC ---
 k_act, p_act, g_act, c_act = 0.0, 0.0, 0.0, 0.0
 df_h = pd.DataFrame()
 try:
@@ -71,7 +71,7 @@ try:
         g_act, c_act = (k_act * 0.25) / 9, (k_act * 0.50) / 4
 except: pass
 
-# --- 6. DASHBOARD CENTRAL ---
+# --- 5. DASHBOARD ---
 st.header("📊 Centro de Mando")
 st.progress(min(k_act / meta_k, 1.0) if meta_k > 0 else 0)
 m1, m2, m3, m4 = st.columns(4)
@@ -87,13 +87,14 @@ with tabs[0]:
     with c1:
         st.subheader("📸 Escáner IA")
         up = st.file_uploader("Foto del plato", type=["jpg","png","jpeg"])
-        if up and st.button("🔍 PROCESAR"):
-            with st.spinner("🤖 Jarvis analizando..."):
+        if up and st.button("🔍 ANALIZAR"):
+            with st.spinner("🤖 Jarvis recalculando ruta..."):
                 try:
                     img_64 = base64.b64encode(up.read()).decode()
                     key = st.secrets["GEMINI_API_KEY"]
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key}"
-                    payload = {"contents":[{"parts":[{"text":"NombreComida, Kcal, Prot. Ejemplo: Pollo, 300, 25"},{"inline_data":{"mime_type":"image/jpeg","data":img_64}}]}]}
+                    # URL CORREGIDA PARA EVITAR EL 404
+                    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={key}"
+                    payload = {"contents":[{"parts":[{"text":"Solo responde: Comida, Kcal, Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img_64}}]}]}
                     r = requests.post(url, json=payload, timeout=25)
                     if r.status_code == 200:
                         txt = r.json()['candidates'][0]['content']['parts'][0]['text']
@@ -104,10 +105,9 @@ with tabs[0]:
                                 "kcal": float(nums[0]), "proteina": float(nums[1]),
                                 "semana": datetime.now().strftime('%Y-%m-%d')
                             }).execute()
-                            st.success("✅ ¡Guardado!")
                             st.rerun()
-                    else: st.error(f"Error Google {r.status_code}")
-                except: st.error("Sin respuesta IA.")
+                    else: st.error(f"Error {r.status_code}: {r.text[:50]}")
+                except: st.error("Fallo de conexión.")
 
     with c2:
         st.subheader("✍️ Registro Manual")
@@ -126,12 +126,7 @@ with tabs[0]:
 
 with tabs[1]:
     if k_act > 0:
-        st.subheader("🎯 Balance de Macros")
-        fig = go.Figure(go.Scatterpolar(
-            r=[p_act/meta_p if meta_p > 0 else 0, k_act/meta_k if meta_k > 0 else 0, c_act/meta_c if meta_c > 0 else 0, g_act/meta_g if meta_g > 0 else 0],
+        fig = go.Figure(go.Scatterpolar(r=[p_act/meta_p, k_act/meta_k, c_act/meta_c, g_act/meta_g],
             theta=['Prot', 'Kcal', 'Carb', 'Grasa'], fill='toself', line_color='#4facfe'))
         fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1.2])), template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
-
-with tabs[2]:
-    if not df_h.empty: st.table(df_h[['comida', 'kcal', 'proteina']])
