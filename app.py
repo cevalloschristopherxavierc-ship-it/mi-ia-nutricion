@@ -69,17 +69,3 @@ m1, m2, m3, m4 = st.columns(4)
 m1.metric("🔥 Kcal", f"{k_act:.0f}", f"/{meta_k:.0f}")
 m2.metric("🍗 Prot", f"{p_act:.1f}g", f"/{meta_p:.0f}g")
 m3.metric("🍚 Carb", f"{c_act:.1f}g")
-m4.metric("🥑 Gras", f"{g_act:.1f}g")
-
-t1, t2, t3 = st.tabs(["🍽️ REGISTRO", "📈 ANÁLISIS", "📅 DIARIO Y HORARIO"])
-
-with t1:
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.subheader("📸 Foto IA")
-        foto = st.file_uploader("Sube plato", type=["jpg","png","jpeg"])
-        if foto and st.button("🔍 ANALIZAR"):
-            with st.spinner("🤖 Jarvis analizando..."):
-                try:
-                    img_b64 = base64.b64encode(foto.read()).decode()
-                    payload = {"contents":[{"parts":[{"text":"Nombre|Kcal|Prot"},{"
