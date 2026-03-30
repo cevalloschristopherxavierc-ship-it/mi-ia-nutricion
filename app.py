@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from datetime import datetime
 from supabase import create_client, Client
 
-# --- 1. IDENTIDAD XAVIER (63KG - DETALLES RESTAURADOS) ---
+# --- 1. ADN JARVIS (DETALLES XAVIER 63KG) ---
 st.set_page_config(page_title="Jarvis OS | Xavier", layout="wide", page_icon="🦾")
 
 st.markdown("""
@@ -21,21 +21,22 @@ def init_connection():
 
 supabase = init_connection()
 
-# --- 2. SESIÓN Y METAS (FÚTBOL / HIPERTROFIA) ---
+# --- 2. CONFIGURACIÓN DE MISIÓN ---
 if 'u_nom' not in st.session_state:
     st.session_state.u_nom, st.session_state.u_pes, st.session_state.u_obj = "Xavier", 63.0, "Fútbol"
     st.session_state.h2o = 0.0
 
+# Metas Exactas (Proteína 138.6g)
 meta_k = 3200.0 if st.session_state.u_obj == "Fútbol" else 2800.0
-meta_p = 138.6 # Tu meta de proteína crítica
+meta_p = 138.6 
 meta_g = (meta_k * 0.25) / 9
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
 
-# --- 3. SIDEBAR (HIDRATACIÓN 3.5L Y CREADOR) ---
+# --- 3. SIDEBAR (HIDRATACIÓN 3.5L, PASOS Y CREADOR) ---
 with st.sidebar:
     st.title(f"👑 {st.session_state.u_nom}")
     st.divider()
-    st.subheader("💧 Hidratación (3.5L)")
+    st.subheader("💧 Hidratación (Meta 3.5L)")
     st.progress(min(st.session_state.h2o / 3.5, 1.0))
     st.write(f"Nivel: **{st.session_state.h2o:.1f}L**")
     if st.button("➕ 0.5L"): st.session_state.h2o += 0.5; st.rerun()
@@ -45,19 +46,19 @@ with st.sidebar:
     if st.text_input("🔐 Creador:", type="password") == "xavier2210":
         st.session_state.creador = True
 
-# --- 4. DATA SYNC ---
+# --- 4. DATA SYNC (SUPABASE) ---
 k_act, p_act = 0.0, 0.0
 hoy_str = datetime.now().strftime('%Y-%m-%d')
 try:
     res = supabase.table('registros_comida').select('*').eq('usuario', "Xavier").execute()
     if res.data:
         df = pd.DataFrame(res.data)
-        df['fecha'] = pd.to_datetime(df['created_at']).dt.strftime('%Y-%m-%d')
-        df_h = df[df['fecha'] == hoy_str]
+        df['f'] = pd.to_datetime(df['created_at']).dt.strftime('%Y-%m-%d')
+        df_h = df[df['f'] == hoy_str]
         k_act, p_act = df_h['kcal'].sum(), df_h['proteina'].sum()
 except: pass
 
-# --- 5. DASHBOARD ---
+# --- 5. DASHBOARD CENTRAL ---
 st.header("📊 Centro de Mando")
 m1, m2 = st.columns(2)
 m1.metric("🔥 Calorías", f"{k_act:.0f}/{meta_k:.0f}")
@@ -68,16 +69,16 @@ tabs = st.tabs(["🍽️ REGISTRO FOTO", "💪 ANÁLISIS", "🕵️ CREADOR"])
 with tabs[0]:
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("📸 Escáner IA (Ruta v1)")
-        up = st.file_uploader("Toma la foto de tu plato", type=["jpg","png","jpeg"])
-        if up and st.button("🔍 ANALIZAR AHORA"):
-            with st.spinner("🤖 Jarvis sincronizando con Google v1..."):
+        st.subheader("📸 Escáner IA (Proyecto Nuevo)")
+        up = st.file_uploader("Sube tu plato", type=["jpg","png","jpeg"])
+        if up and st.button("🔍 ANALIZAR"):
+            with st.spinner("🤖 Jarvis sincronizando con la nueva Key..."):
                 try:
                     img_64 = base64.b64encode(up.read()).decode()
                     key = st.secrets["GEMINI_API_KEY"]
-                    # NUEVA RUTA ESTABLE 2026
+                    # RUTA ESTABLE PARA PROYECTOS NUEVOS
                     url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={key}"
-                    payload = {"contents":[{"parts":[{"text":"Responde solo: Comida, Kcal, Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img_64}}]}]}
+                    payload = {"contents":[{"parts":[{"text":"Solo responde: Comida, Kcal, Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img_64}}]}]}
                     r = requests.post(url, json=payload, timeout=30)
                     if r.status_code == 200:
                         txt = r.json()['candidates'][0]['content']['parts'][0]['text']
@@ -85,8 +86,8 @@ with tabs[0]:
                         if len(nums) >= 2:
                             supabase.table('registros_comida').insert({"usuario":"Xavier","comida":"IA_Scan","kcal":float(nums[0]),"proteina":float(nums[1]),"semana":hoy_str}).execute()
                             st.rerun()
-                    else: st.error(f"Error {r.status_code}: Prueba con una API Key nueva en un proyecto nuevo.")
-                except: st.error("Fallo de conexión.")
+                    else: st.error(f"Error {r.status_code}. Google dice: {r.text[:100]}")
+                except: st.error("Fallo de red.")
     with c2:
         st.subheader("✍️ Registro Manual")
         with st.form("f_man", clear_on_submit=True):
@@ -102,3 +103,11 @@ with tabs[1]:
         fig = go.Figure(go.Scatterpolar(r=[p_act/meta_p, k_act/meta_k, 0.8, 0.7], theta=['Prot', 'Kcal', 'Carb', 'Grasa'], fill='toself', line_color='#4facfe'))
         fig.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 1.2])), template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
+
+with tabs[2]:
+    if st.session_state.get('creador', False):
+        st.subheader("🕵️ Base de Datos Global")
+        try:
+            res_all = supabase.table('registros_comida').select('*').execute()
+            if res_all.data: st.dataframe(pd.DataFrame(res_all.data))
+        except: st.write("Error en DB.")
