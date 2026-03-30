@@ -25,7 +25,7 @@ if 'perfil_listo' not in st.session_state:
 if not st.session_state.perfil_listo:
     st.title("🦾 Configuración de Jarvis")
     with st.form("perfil_inicial"):
-        st.write("Ingresa tus datos para activar el núcleo:")
+        st.write("Datos para activar el núcleo:")
         c1, c2 = st.columns(2)
         nom = c1.text_input("¿Cómo te llamas?", "Xavier")
         pes = c2.number_input("Peso actual (kg)", 30.0, 150.0, 63.0)
@@ -69,7 +69,7 @@ with t1:
             k_hoy = df_h[df_h['f'] == hoy.date()]['kcal'].sum()
             c1, c2 = st.columns(2)
             c1.metric("Kcal Hoy", f"{k_hoy:.0f} / {meta_k:.0f}")
-            st.progress(min(k_hoy/meta_k, 1.0))
+            st.progress(min(float(k_hoy/meta_k), 1.0))
         else:
             st.info("Sin registros esta semana.")
     except Exception:
@@ -79,4 +79,47 @@ with t2:
     col_a, col_b = st.columns(2)
     res_c = None
     with col_a:
-        st.subheader("
+        st.subheader("📸 Foto IA")
+        foto = st.file_uploader("Subir plato", type=["jpg","png","jpeg"])
+        if foto and st.button("🔍 ANALIZAR"):
+            try:
+                img = base64.b64encode(foto.read()).decode()
+                p = "Responde solo: Nombre|Kcal|Prot|Carb|Gras"
+                pld = {"contents":[{"parts":[{"text":p},{"inline_data":{"mime_type":"image/jpeg","data":img}}]}]}
+                r = requests.post(URL_AI, json=pld).json()
+                raw = r['candidates'][0]['content']['parts'][0]['text'].strip()
+                d = raw.replace(' ','').replace('g','').replace('*','').split('|')
+                res_c = {"n":d[0], "k":float(d[1]), "p":float(d[2]), "c":float(d[3]), "g":float(d[4])}
+            except Exception:
+                st.error("Error IA. Usa manual.")
+    with col_b:
+        st.subheader("✍️ Manual")
+        with st.form("manual_f", clear_on_submit=True):
+            n_m = st.text_input("Comida")
+            k_m = st.number_input("Kcal", 0.0)
+            p_m = st.number_input("Proteína (g)", 0.0)
+            if st.form_submit_button("💾 GUARDAR"):
+                if n_m:
+                    res_c = {"n":n_m, "k":k_m, "p":p_m, "c":0.0, "g":0.0}
+
+    if res_c:
+        try:
+            supabase.table('registros_comida').insert({
+                "usuario": st.session_state.u_nom, "comida": str(res_c['n']), 
+                "kcal": float(res_c['k']), "proteina": float(res_c['p']), 
+                "carbos": float(res_c['c']), "grasas": float(res_c['g']), 
+                "semana": str(inicio_sem)
+            }).execute()
+            st.success(f"✅ {res_c['n']} guardado.")
+            st.rerun()
+        except Exception:
+            st.error("Error al guardar en la nube.")
+
+# --- 6. HISTORIAL SEMANAL ---
+st.divider()
+st.subheader("📋 Tu Historial")
+if 'df_h' in locals() and not df_h.empty:
+    for _, r in df_h.sort_values(by='created_at', ascending=False).iterrows():
+        with st.expander(f"🍴 {r['comida']} — {r['kcal']:.0f} kcal"):
+            st.write(f"🍗 P: {r['proteina']}g | 🍚 C: {r['carbos']}g | 🥑 G: {r['grasas']}g")
+            st.write(f"📅 {pd.to_datetime(r['created_at']).strftime('%d/%m %H:%M')}")
