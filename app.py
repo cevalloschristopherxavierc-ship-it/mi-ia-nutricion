@@ -80,26 +80,4 @@ except:
 
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Kcal Comidas", f"{k_act:.0f}")
-m2.metric("Proteína", f"{p_act:.1f}g", f"Meta: {meta_p:.0f}g")
-m3.metric("Kcal Pasos", f"{kcal_pasos:.0f}")
-m4.metric("Balance", f"{(k_act - kcal_pasos):.0f}")
-
-t1, t2 = st.tabs(["📈 ANÁLISIS", "🍽️ REGISTRO"])
-
-with t1:
-    if k_act > 0:
-        fig = px.pie(values=[p_act*4, abs(k_act-(p_act*4)-400), 400], names=['Prot', 'Carb', 'Gras'], hole=0.4, template="plotly_dark")
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Sin registros hoy.")
-
-with t2:
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.subheader("📸 Foto IA")
-        foto = st.file_uploader("Sube plato", type=["jpg","jpeg","png"])
-        if foto and st.button("🔍 ANALIZAR"):
-            with st.spinner("🤖 Analizando..."):
-                try:
-                    img_data = base64.b64encode(foto.read()).decode()
-                    prompt = "Nombre|Kcal|Proteina. Ejemplo: Pol
+m2.metric("Proteína", f"{p_
