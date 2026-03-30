@@ -15,7 +15,7 @@ try:
     URL_AI = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={G_KEY}"
     supabase: Client = create_client(S_URL, S_KEY)
 except Exception:
-    st.error("⚠️ Error en Secrets. Revisa Streamlit Cloud.")
+    st.error("⚠️ Configura los Secrets en Streamlit Cloud.")
     st.stop()
 
 # --- 2. PERFIL DE USUARIO ---
@@ -78,4 +78,37 @@ with t1:
         df_h = pd.DataFrame(res_h.data) if res_h.data else pd.DataFrame()
         if not df_h.empty:
             df_h['fecha_dt'] = pd.to_datetime(df_h['created_at']).dt.date
-            h_data = df_h
+            h_data = df_h[df_h['fecha_dt'] == hoy.date()]
+            
+            k_h, p_h, c_h, g_h = h_data['kcal'].sum(), h_data['proteina'].sum(), h_data['carbos'].sum(), h_data['grasas'].sum()
+            
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Calorías", f"{k_h:.0f}", f"{meta_k:.0f}")
+            c2.metric("Proteína", f"{p_h:.1f}g", f"{meta_p:.0f}g")
+            c3.metric("Carbos", f"{c_h:.1f}g", f"{meta_c:.0f}g")
+            c4.metric("Grasas", f"{g_h:.1f}g", f"{meta_g:.0f}g")
+            st.progress(min(float(k_h/meta_k), 1.0))
+            
+            if k_h > 0:
+                fig = px.pie(values=[p_h*4, c_h*4, g_h*9], names=['Proteína', 'Carbos', 'Grasas'], 
+                             hole=0.4, title="Distribución de hoy", template="plotly_dark")
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info(f"Sin registros para este {dia_hoy_nombre}.")
+    except Exception:
+        st.warning("No se pudo cargar el historial diario.")
+
+with t2:
+    col_a, col_b = st.columns(2)
+    res_f = None
+    with col_a:
+        st.subheader("📸 Foto IA")
+        foto = st.file_uploader("Subir plato", type=["jpg","png","jpeg"])
+        if foto and st.button("🔍 ANALIZAR"):
+            with st.spinner("🤖 Jarvis analizando..."):
+                try:
+                    img = base64.b64encode(foto.read()).decode()
+                    p = "Responde estrictamente: Nombre|Kcal|Prot|Carb|Gras"
+                    pld = {"contents":[{"parts":[{"text":p},{"inline_data":{"mime_type":"image/jpeg","data":img}}]}]}
+                    r = requests.post(URL_AI, json=pld).json()
+                    raw =
