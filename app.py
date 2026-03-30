@@ -16,7 +16,7 @@ try:
     URL_AI = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={G_KEY}"
     supabase: Client = create_client(S_URL, S_KEY)
 except:
-    st.error("⚠️ Error en Secrets. Revisa Streamlit Cloud.")
+    st.error("⚠️ Configura los Secrets en Streamlit Cloud.")
     st.stop()
 
 # --- 3. ESTILOS ---
@@ -57,4 +57,27 @@ with st.sidebar:
 
 # --- 6. PANEL PRINCIPAL ---
 st.title(f"📈 Dashboard Nutricional: {u_nom}")
-t1, t2 = st.tabs(["📊 MI PROGRESO", "🍽️
+# LÍNEA 60 CORREGIDA:
+t1, t2 = st.tabs(["📊 PROGRESO", "🍽️ REGISTRAR"])
+
+with t1:
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Proteína", f"{st.session_state.prot} g")
+    m2.metric("Carbos", f"{st.session_state.carb} g")
+    m3.metric("Grasas", f"{st.session_state.gras} g")
+    
+    df_m = pd.DataFrame({
+        'Nutriente': ['Proteína', 'Carbos', 'Grasas'],
+        'Gramos': [st.session_state.prot, st.session_state.carb, st.session_state.gras]
+    })
+    st.plotly_chart(px.pie(df_m, values='Gramos', names='Nutriente', hole=0.5, template="plotly_dark", color_discrete_sequence=['#00FF41', '#FFC107', '#2196F3']), use_container_width=True)
+
+with t2:
+    c_f, c_m = st.columns(2)
+    comida_res = None
+
+    with c_f:
+        st.subheader("📸 Escaneo IA")
+        foto = st.file_uploader("Sube plato", type=["jpg","png","jpeg"])
+        if foto:
+            img_b64 = base64.b64encode(foto.read()).decode('utf-8')
