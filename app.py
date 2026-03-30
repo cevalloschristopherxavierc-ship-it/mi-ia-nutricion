@@ -95,4 +95,14 @@ with st.sidebar:
         st.rerun()
 
 st.subheader("📸 ESCÁNER NUTRICIONAL")
-foto = st.file
+# LÍNEA 98 CORREGIDA (st.file_uploader):
+foto = st.file_uploader("Sube tu comida", type=["jpg", "png", "jpeg"])
+
+if foto:
+    img_64 = base64.b64encode(foto.read()).decode('utf-8')
+    st.image(foto, use_container_width=True)
+    if st.button("🔍 ANALIZAR AHORA"):
+        with st.spinner("🤖 Analizando..."):
+            payload = {
+                "contents": [{
+                    "parts
