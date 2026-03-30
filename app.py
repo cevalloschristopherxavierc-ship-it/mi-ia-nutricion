@@ -1,11 +1,8 @@
 import streamlit as st
-import requests
-import base64
-import pd
+import requests, base64, re, pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
 from supabase import create_client, Client
-import re
 
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="Jarvis: Maestro Xavier", layout="wide", page_icon="🦾")
@@ -15,76 +12,127 @@ try:
     G_KEY = st.secrets["GEMINI_API_KEY"]
     URL_AI = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={G_KEY}"
     supabase: Client = create_client(S_URL, S_KEY)
-except Exception:
-    st.error("🚨 Error de Secrets. Verifica Supabase y Gemini.")
+except:
+    st.error("🚨 Error de Secrets.")
     st.stop()
 
-# --- 2. PERFIL Y SESIÓN ---
+# --- 2. SESIÓN ---
 if 'u_nom' not in st.session_state:
-    st.title("🦾 Protocolo de Inicio Jarvis")
-    with st.form("registro_inicial"):
-        c1, c2 = st.columns(2)
-        nom = c1.text_input("Usuario:", "Xavier")
-        pes = c2.number_input("Peso Actual (kg):", 30.0, 150.0, 63.0)
-        obj = c1.selectbox("Objetivo Principal:", ["Hipertrofia", "Fútbol", "Definición"])
-        if st.form_submit_button("🚀 ACCEDER AL SISTEMA"):
+    with st.form("reg"):
+        st.title("🦾 Activación Jarvis")
+        nom = st.text_input("Usuario:", "Xavier")
+        pes = st.number_input("Peso (kg):", 30.0, 150.0, 63.0)
+        obj = st.selectbox("Objetivo:", ["Hipertrofia", "Fútbol", "Definición"])
+        if st.form_submit_button("🚀 ENTRAR"):
             st.session_state.u_nom, st.session_state.u_pes, st.session_state.u_obj = nom.strip(), pes, obj
-            st.session_state.h2o = 0.0 # Inicializar Agua
+            st.session_state.h2o = 0.0
             st.rerun()
     st.stop()
 
-# --- 3. TIEMPO Y METAS ---
+# --- 3. METAS Y TIEMPO ---
 hoy = datetime.now()
 dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-dia_hoy = dias[hoy.weekday()]
-inicio_sem = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
+dia_h = dias[hoy.weekday()]
+ini_s = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 
-# Lógica de Metas basada en 63kg y Fútbol
 meta_k = 3200.0 if st.session_state.u_obj == "Fútbol" else 2750.0
-meta_p = st.session_state.u_pes * 2.2 # ~138g
-meta_g = (meta_k * 0.25) / 9 # Grasas al 25% (salud hormonal)
+meta_p = st.session_state.u_pes * 2.2
+meta_g = (meta_k * 0.25) / 9  # Meta de Grasa (25% de kcal)
 meta_c = (meta_k - (meta_p * 4) - (meta_g * 9)) / 4
 
-# --- 4. SIDEBAR (Agua, Pasos y Creador) ---
+# --- 4. SIDEBAR (Agua y Pasos) ---
 with st.sidebar:
-    st.title(f"👑 Maestro: {st.session_state.u_nom}")
-    st.subheader(f"📅 {dia_hoy}")
-    
+    st.title(f"👑 {st.session_state.u_nom}")
+    st.info(f"🏋️ Hoy: {dia_h}")
     st.divider()
-    # Contador de Agua (Restauration)
-    st.subheader("💧 Control Hidratación")
-    c_h1, c_h2 = st.columns(2)
-    if c_h1.button("➕ 500ml"): 
-        st.session_state.h2o += 0.5
-    if c_h2.button("🧹 Limpiar"): 
-        st.session_state.h2o = 0.0
-    st.progress(min(st.session_state.h2o / 3.5, 1.0))
-    st.write(f"Consumo Agua: **{st.session_state.h2o}L** / 3.5L")
-
+    st.subheader("💧 Agua")
+    c1, c2 = st.columns(2)
+    if c1.button("➕ 0.5L"): st.session_state.h2o += 0.5; st.rerun()
+    if c2.button("🧹 Reset"): st.session_state.h2o = 0.0; st.rerun()
+    st.write(f"Consumo: **{st.session_state.h2o}L** / 3.5L")
     st.divider()
-    # Contador de Pasos (Novedad)
-    st.subheader("👣 Actividad Diaria")
+    st.subheader("👣 Actividad")
     steps = st.number_input("Pasos hoy:", 0, 50000, 0, 500)
-    kcal_steps = (steps / 1000) * 38 # Estimación quemada
-    st.metric("Quemado Pasos", f"{kcal_steps:.0f} Kcal")
-
+    k_steps = (steps / 1000) * 38
+    st.metric("Quemado", f"{k_steps:.0f} Kcal")
     st.divider()
-    # Creador Protegido
-    st.subheader("🔐 Supervisor")
-    cod = st.text_input("Código Maestro:", type="password")
+    cod = st.text_input("🔐 Creador:", type="password")
     st.session_state.creador = (cod == "xavier2210")
 
-# --- 5. OBTENCIÓN DE DATOS DE HOY ---
-p_act, k_act, c_act, g_act = 0.0, 0.0, 0.0, 0.0
-df_hoy = pd.DataFrame()
-df_all = pd.DataFrame()
+# --- 5. DATA ---
+k_act, p_act, g_act, c_act = 0.0, 0.0, 0.0, 0.0
+df_h, df_a = pd.DataFrame(), pd.DataFrame()
 try:
-    res = supabase.table('registros_comida').select('*').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
+    res = supabase.table('registros_comida').select('*').eq('semana', ini_s).execute()
     if res.data:
-        df_all = pd.DataFrame(res.data)
-        df_all['fecha'] = pd.to_datetime(df_all['created_at']).dt.date
-        df_hoy = df_all[df_all['fecha'] == hoy.date()]
-        if not df_hoy.empty:
-            k_act, p_act = df_hoy['kcal'].sum(), df_hoy['proteina'].sum()
-            # Estimación de Carbos/Grasas basada en Kcal restantes
-            c_act = (k_act * 0.5) / 4 if k_act > 0 else
+        df_a = pd.DataFrame(res.data)
+        df_a['f'] = pd.to_datetime(df_a['created_at']).dt.date
+        df_h = df_a[(df_a['usuario'] == st.session_state.u_nom) & (df_a['f'] == hoy.date())]
+        k_act, p_act = df_h['kcal'].sum(), df_h['proteina'].sum()
+        # CORRECCIÓN LÍNEA 90:
+        g_act = (k_act * 0.25) / 9 if k_act > 0 else 0.0
+        c_act = (k_act * 0.50) / 4 if k_act > 0 else 0.0
+except: pass
+
+# --- 6. UI ---
+st.title("📊 Panel Élite Jarvis")
+st.progress(min(k_act / meta_k, 1.0))
+
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("🔥 Kcal", f"{k_act:.0f}/{meta_k:.0f}")
+m2.metric("🍗 Prot", f"{p_act:.1f}g/{meta_p:.0f}g")
+m3.metric("🥑 Grasa", f"{g_act:.1f}g/{meta_g:.0f}g")
+m4.metric("🍚 Carb", f"{c_act:.0f}g")
+
+t1, t2, t3, t4 = st.tabs(["🍽️ REGISTRO", "💪 MÚSCULO", "📝 DIARIO", "🕵️ CREADOR"])
+
+with t1:
+    ca, cb = st.columns(2)
+    with ca:
+        st.subheader("📸 Foto IA")
+        foto = st.file_uploader("Sube plato", type=["jpg","png","jpeg"])
+        if foto and st.button("🔍 ANALIZAR"):
+            with st.spinner("🤖 Jarvis..."):
+                try:
+                    img = base64.b64encode(foto.read()).decode()
+                    pay = {"contents":[{"parts":[{"text":"Nombre|Kcal|Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img}}]}]}
+                    r = requests.post(URL_AI, json=pay, timeout=15).json()
+                    pts = r['candidates'][0]['content']['parts'][0]['text'].strip().split('|')
+                    if len(pts) >= 3:
+                        kv, pv = float(re.findall(r"\d+", pts[1])[0]), float(re.findall(r"\d+", pts[2])[0])
+                        supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":pts[0], "kcal":kv, "proteina":pv, "semana":ini_s}).execute()
+                        st.rerun()
+                except: st.error("Error IA")
+    with cb:
+        st.subheader("✍️ Manual")
+        with st.form("m_en"):
+            cm = st.text_input("Comida")
+            pm, km = st.number_input("Prot", 0.0), st.number_input("Kcal", 0.0)
+            if st.form_submit_button("💾"):
+                supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":cm, "kcal":km, "proteina":pm, "semana":ini_s}).execute()
+                st.rerun()
+
+with t2:
+    st.subheader("💪 Análisis Muscular Animado")
+    if p_act > 0:
+        fig = px.bar_polar(r=[p_act/meta_p, k_act/meta_k, g_act/meta_g], 
+                           theta=['Músculo (Prot)', 'Energía (Kcal)', 'Hormonas (Grasa)'],
+                           color=['Prot', 'Kcal', 'Grasa'], template="plotly_dark",
+                           color_discrete_sequence=['#FF4B4B', '#48FF48', '#F1C40F'])
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption("🔥 ¡Haz que el músculo crezca hacia afuera!")
+    else: st.info("Sin datos.")
+
+with t3:
+    st.subheader("📝 Historial Profesional")
+    if not df_h.empty:
+        st.table(df_h[['comida', 'kcal', 'proteina']])
+    else: st.write("Vacío.")
+
+with t4:
+    if st.session_state.get('creador', False):
+        st.subheader("🕵️ Panel Creador Activo")
+        if not df_a.empty:
+            sel = st.selectbox("Usuario:", df_a['usuario'].unique())
+            st.dataframe(df_a[df_a['usuario'] == sel], use_container_width=True)
+    else: st.warning("🔒 Código en Sidebar.")
