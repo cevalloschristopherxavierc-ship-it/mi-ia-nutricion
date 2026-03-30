@@ -18,20 +18,20 @@ except:
     st.error("⚠️ Configura los Secrets en Streamlit Cloud.")
     st.stop()
 
-# --- 2. GESTIÓN DE PERFIL ---
+# --- 2. GESTIÓN DE PERFIL (PREGUNTAS DE INICIO) ---
 if 'perfil_listo' not in st.session_state:
     st.session_state.perfil_listo = False
 
 if not st.session_state.perfil_listo:
     st.title("🦾 Configuración de Jarvis")
     with st.form("perfil_inicial"):
-        st.write("Datos para personalizar tu nutrición:")
+        st.write("Ingresa tus datos para personalizar la App:")
         c1, c2 = st.columns(2)
         nom = c1.text_input("¿Cómo te llamas?", "Xavier")
         pes = c2.number_input("Peso (kg)", 30.0, 150.0, 63.0)
         alt = c1.number_input("Altura (cm)", 100, 230, 170)
-        obj = c2.selectbox("Objetivo", ["Hipertrofia", "Definición", "Fútbol"])
-        if st.form_submit_button("🔥 ACTIVAR NÚCLEO"):
+        obj = c2.selectbox("Objetivo", ["Hipertrofia (Músculo)", "Definición (Grasa)", "Fútbol"])
+        if st.form_submit_button("🚀 ACTIVAR NÚCLEO"):
             st.session_state.u_nom = nom.strip()
             st.session_state.u_pes = pes
             st.session_state.u_alt = alt
@@ -39,7 +39,7 @@ if not st.session_state.perfil_listo:
             st.rerun()
     st.stop()
 
-# --- 3. TIEMPO ---
+# --- 3. LÓGICA DE TIEMPO (REINICIO SEMANAL) ---
 hoy = datetime.now()
 inicio_sem = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 
@@ -50,6 +50,7 @@ with st.sidebar:
     st.divider()
     modo = st.radio("Actividad de hoy:", ["Gym (Pierna/Glúteo)", "Fútbol (2h+)"])
     meta_k = 3200.0 if "Fútbol" in modo else 2600.0
+    # Hidratación profesional
     agua = (st.session_state.u_pes * 35 / 1000) + (1.2 if "Fútbol" in modo else 0.5)
     st.info(f"💧 Agua diaria: **{agua:.2f}L**")
     if st.button("🔄 Cambiar Usuario"):
@@ -57,4 +58,14 @@ with st.sidebar:
         st.rerun()
 
 # --- 5. DASHBOARD ---
-st.title(f"📊 Dashboard: {st.session_state
+st.title(f"📊 Dashboard: {st.session_state.u_nom}")
+t1, t2 = st.tabs(["📈 ESTADÍSTICAS", "🍽️ REGISTRAR"])
+
+with t1:
+    try:
+        res_h = supabase.table('registros_comida').select('*').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
+        df_h = pd.DataFrame(res_h.data) if res_h.data else pd.DataFrame()
+        if not df_h.empty:
+            df_h['f'] = pd.to_datetime(df_h['created_at']).dt.date
+            k_hoy = df_h[df_h['f'] == hoy.date()]['kcal'].sum()
+            c1
