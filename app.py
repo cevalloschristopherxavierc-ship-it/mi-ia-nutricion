@@ -43,7 +43,7 @@ meta_k = 3200.0 if obj_act == "Fútbol" else 2750.0
 meta_p = st.session_state.u_pes * 2.2 
 meta_agua = (st.session_state.u_pes * 35 / 1000) + (1.2 if obj_act == "Fútbol" else 0.6)
 
-# Quema de calorías por pasos (Aprox 38 kcal por cada 1000 pasos para 63kg)
+# Quema de calorías por pasos (Aprox 38 kcal por cada 1000 pasos)
 kcal_pasos = (st.session_state.steps / 1000) * 38
 
 # --- 4. SIDEBAR ---
@@ -64,20 +64,4 @@ with st.sidebar:
     st.subheader("🕵️ Panel Maestro")
     target = st.text_input("Vigilar Discípulo:", placeholder="Nombre")
     btn_vigilar = st.button("👁️ Rastrear")
-
-# --- 5. DASHBOARD PRINCIPAL ---
-st.title(f"📊 Dashboard: {st.session_state.u_nom}")
-p_act, k_act = 0.0, 0.0
-try:
-    res = supabase.table('registros_comida').select('*').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
-    if res.data:
-        df = pd.DataFrame(res.data)
-        df['f'] = pd.to_datetime(df['created_at']).dt.date
-        hoy_df = df[df['f'] == hoy.date()]
-        k_act, p_act = hoy_df['kcal'].sum(), hoy_df['proteina'].sum()
-except:
-    pass
-
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Kcal Comidas", f"{k_act:.0f}")
-m2.metric("Proteína", f"{p_
+    
