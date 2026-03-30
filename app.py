@@ -38,13 +38,13 @@ dia_hoy = dias[hoy.weekday()]
 inicio_sem = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 
 rutina = {
-    "Lunes": {"entreno": "🍗 Piernas/Glúteo (Fuerza)", "comida": "🍳 Huevos/Avena | 🍗 Pollo/Arroz | 🐟 Pescado"},
-    "Martes": {"entreno": "👕 Pecho/Tríceps/Hombro", "comida": "🥤 Batido/Banano | 🥩 Carne/Pasta | 🍗 Pollo/Camote"},
-    "Miércoles": {"entreno": "🔙 Espalda/Bíceps", "comida": "🍳 Claras/Pan | 🦃 Pavo/Arroz | 🐟 Atún/Ensalada"},
-    "Jueves": {"entreno": "🍗 Piernas/Glúteo (Hipertrofia)", "comida": "🥣 Yogur/Nueces | 🍗 Pollo/Lentejas | 🍳 Huevos"},
-    "Viernes": {"entreno": "⚽ Fútbol (Partido)", "comida": "🥣 Avena/Fruta | 🍝 Pasta/Pollo | 🥤 Batido Post"},
-    "Sábado": {"entreno": "💪 Torso Superior", "comida": "🥞 Pancakes Avena | 🐟 Pescado/Papa | 🍗 Pollo"},
-    "Domingo": {"entreno": "🛌 Descanso", "comida": "🥗 Ensaladas y Proteína base"}
+    "Lunes": {"ent": "🍗 Piernas/Glúteo (Fuerza)", "com": "🍳 Huevos/Avena | 🍗 Pollo/Arroz"},
+    "Martes": {"ent": "👕 Pecho/Tríceps/Hombro", "com": "🥤 Batido/Banano | 🥩 Carne/Pasta"},
+    "Miércoles": {"ent": "🔙 Espalda/Bíceps", "com": "🍳 Claras/Pan | 🦃 Pavo/Arroz"},
+    "Jueves": {"ent": "🍗 Piernas/Glúteo (Hipertrofia)", "com": "🥣 Yogur/Nueces | 🍗 Pollo/Lentejas"},
+    "Viernes": {"ent": "⚽ Fútbol (Partido)", "com": "🥣 Avena/Fruta | 🍝 Pasta/Pollo"},
+    "Sábado": {"ent": "💪 Torso Superior", "com": "🥞 Pancakes Avena | 🐟 Pescado/Papa"},
+    "Domingo": {"ent": "🛌 Descanso", "com": "🥗 Ensalada y Proteína"}
 }
 
 meta_k = 3200 if st.session_state.u_obj == "Fútbol" else 2750
@@ -55,26 +55,22 @@ if 'pasos' not in st.session_state: st.session_state.pasos = 0
 # --- 4. SIDEBAR ---
 with st.sidebar:
     st.title(f"👑 Creador: {st.session_state.u_nom}")
-    st.info(f"🏋️ **Hoy:** {rutina[dia_hoy]['entreno']}")
+    st.info(f"🏋️ **Hoy:** {rutina[dia_hoy]['ent']}")
     st.subheader("💧 Agua")
-    c_a1, c_a2 = st.columns(2)
-    if c_a1.button("➕ 500ml"): st.session_state.agua += 0.5; st.rerun()
-    if c_a2.button("🧹 Limpiar"): st.session_state.agua = 0.0; st.rerun()
+    ca1, ca2 = st.columns(2)
+    if ca1.button("➕ 0.5L"): st.session_state.agua += 0.5; st.rerun()
+    if ca2.button("🧹 Reset"): st.session_state.agua = 0.0; st.rerun()
     st.write(f"Total: **{st.session_state.agua}L**")
     st.subheader("👣 Pasos")
     st.session_state.pasos = st.number_input("Hoy:", 0, 50000, st.session_state.pasos, step=500)
     st.divider()
-    # MODO CREADOR PROTEGIDO
     st.subheader("🔐 Supervisor")
     cod = st.text_input("Código Maestro:", type="password")
-    if cod == "xavier2210": # CÓDIGO ACTUALIZADO
-        st.success("Acceso Creador Confirmado")
-        st.session_state.creador = True
-    else: st.session_state.creador = False
+    st.session_state.creador = (cod == "xavier2210")
 
-# --- 5. OBTENCIÓN DE DATOS ---
+# --- 5. DATA ---
 p_act, k_act = 0.0, 0.0
-df_hoy = pd.DataFrame()
+df_hoy, df_all = pd.DataFrame(), pd.DataFrame()
 try:
     res = supabase.table('registros_comida').select('*').eq('semana', inicio_sem).execute()
     if res.data:
@@ -91,6 +87,26 @@ m1.metric("🔥 Calorías", f"{k_act:.0f}/{meta_k}")
 m2.metric("🍗 Proteína", f"{p_act:.1f}g/{meta_p:.0f}g")
 m3.metric("🏃 Quemado", f"{(st.session_state.pasos/1000)*38:.0f} kcal")
 
-t1, t2, t3, t4 = st.tabs(["🍽️ REGISTRO", "📈 ANÁLISIS", "📅 HORARIO Y DIARIO", "🕵️ SUPERVISOR"])
+t1, t2, t3, t4 = st.tabs(["🍽️ REGISTRO", "📈 ANÁLISIS", "📅 HORARIO", "🕵️ SUPERVISOR"])
 
 with t1:
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.subheader("📸 Foto IA")
+        foto = st.file_uploader("Sube plato", type=["jpg","png","jpeg"])
+        if foto and st.button("🔍 ANALIZAR"):
+            with st.spinner("🤖 Jarvis analizando..."):
+                try:
+                    img_b64 = base64.b64encode(foto.read()).decode()
+                    payload = {"contents":[{"parts":[{"text":"Nombre|Kcal|Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
+                    r = requests.post(URL_AI, json=payload, timeout=15).json()
+                    txt = r['candidates'][0]['content']['parts'][0]['text'].strip()
+                    pts = txt.split('|')
+                    if len(pts) >= 3:
+                        kv = float(re.findall(r"\d+", pts[1])[0])
+                        pv = float(re.findall(r"\d+", pts[2])[0])
+                        supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":pts[0].strip(), "kcal":kv, "proteina":pv, "semana":inicio_sem}).execute()
+                        st.rerun()
+                except: st.error("Error IA. Intenta de nuevo.")
+    with col_b:
+        st.subheader("✍
