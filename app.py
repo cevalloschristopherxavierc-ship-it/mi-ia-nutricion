@@ -81,7 +81,36 @@ with t1:
             with st.spinner("🤖 Jarvis analizando..."):
                 try:
                     img_b64 = base64.b64encode(foto.read()).decode()
-                    payload = {"contents":[{"parts":[{"text":"Responde Nombre|Kcal|Proteina"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
+                    payload = {"contents":[{"parts":[{"text":"Nombre|Kcal|Prot"},{"inline_data":{"mime_type":"image/jpeg","data":img_b64}}]}]}
                     r = requests.post(URL_AI, json=payload).json()
-                    if 'candidates' in r:
-                        txt = r['candidates'][0]['content']['
+                    # CORRECCIÓN LÍNEA 87 (Sintaxis reparada):
+                    txt_ia = r['candidates'][0]['content']['parts'][0]['text'].strip()
+                    partes = txt_ia.split('|')
+                    if len(partes) >= 3:
+                        kv = float(re.findall(r"\d+", partes[1])[0])
+                        pv = float(re.findall(r"\d+", partes[2])[0])
+                        supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":partes[0].strip(), "kcal":kv, "proteina":pv, "semana":inicio_sem}).execute()
+                        st.success(f"✅ Guardado: {partes[0]}")
+                        st.rerun()
+                except: st.error("Error al procesar foto.")
+    with col_b:
+        st.subheader("✍️ Registro Manual")
+        with st.form("fix_manual"):
+            cm = st.text_input("Comida")
+            pm = st.number_input("Proteína (g)", 0.0)
+            km = st.number_input("Calorías (kcal)", 0.0)
+            if st.form_submit_button("💾 GUARDAR"):
+                supabase.table('registros_comida').insert({"usuario":st.session_state.u_nom, "comida":cm, "kcal":km, "proteina":pm, "semana":inicio_sem}).execute()
+                st.rerun()
+
+with t3:
+    st.subheader(f"📝 Tu Diario de Hoy ({dia_hoy})")
+    if not df_hoy.empty:
+        # Aquí se anota lo que registras tú mismo
+        st.dataframe(df_hoy[['comida', 'kcal', 'proteina']], use_container_width=True)
+    else:
+        st.info("Aún no hay registros de comida para hoy.")
+    
+    st.divider()
+    st.subheader("🗓️ Horario de Entrenamiento Profesional")
+    st.table(pd.DataFrame({"Día": dias, "Entreno": [plan_entreno[d] for d in dias]}))
