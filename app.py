@@ -32,7 +32,7 @@ if 'u_nom' not in st.session_state:
             st.rerun()
     st.stop()
 
-# --- 3. LÓGICA NUTRICIONAL Y TIEMPO ---
+# --- 3. LÓGICA NUTRICIONAL Y PASOS ---
 hoy = datetime.now()
 inicio_sem = (hoy - timedelta(days=hoy.weekday())).strftime('%Y-%m-%d')
 if 'h2o' not in st.session_state: st.session_state.h2o = 0.0
@@ -43,31 +43,35 @@ meta_k = 3200.0 if obj_act == "Fútbol" else 2750.0
 meta_p = st.session_state.u_pes * 2.2 
 meta_agua = (st.session_state.u_pes * 35 / 1000) + (1.2 if obj_act == "Fútbol" else 0.6)
 
+# NUEVA LÓGICA: Quema de calorías por pasos (Aprox 38 kcal por cada 1000 pasos para 63kg)
+kcal_pasos = (st.session_state.steps / 1000) * 38
+
 # --- 4. SIDEBAR ---
 with st.sidebar:
     st.title(f"👑 Maestro: {st.session_state.u_nom}")
+    st.divider()
+    
+    st.subheader("👣 Actividad Diaria")
+    st.session_state.steps = st.number_input("Registrar Pasos:", 0, 50000, st.session_state.steps)
+    st.write(f"🔥 Quemado hoy: **{kcal_pasos:.0f} kcal**")
+    
     st.divider()
     st.subheader("💧 Hidratación")
     prog_agua = min(st.session_state.h2o / meta_agua, 1.0)
     st.progress(prog_agua)
     st.write(f"Llevas: **{st.session_state.h2o:.1f}L** / {meta_agua:.1f}L")
-    if st.button("➕ Beber 500ml"): 
+    if st.button("➕ 500ml"): 
         st.session_state.h2o += 0.5
         st.rerun()
-    st.divider()
-    st.subheader("📊 Tus Metas")
-    st.info(f"🔥 Kcal: **{meta_k:.0f}**")
-    st.info(f"🍗 Prot: **{meta_p:.0f}g**")
+        
     st.divider()
     st.subheader("🕵️ Panel Maestro")
     target = st.text_input("Vigilar Discípulo:", placeholder="Nombre")
     btn_vigilar = st.button("👁️ Rastrear")
-    if st.button("🔄 Reiniciar"):
-        st.session_state.clear()
-        st.rerun()
 
 # --- 5. DASHBOARD PRINCIPAL ---
 st.title(f"📊 Dashboard: {st.session_state.u_nom}")
+
 p_act, k_act = 0.0, 0.0
 try:
     res = supabase.table('registros_comida').select('*').eq('usuario', st.session_state.u_nom).eq('semana', inicio_sem).execute()
@@ -78,15 +82,12 @@ try:
         k_act, p_act = hoy_df['kcal'].sum(), hoy_df['proteina'].sum()
 except: pass
 
-if p_act >= meta_p and st.session_state.steps >= 8000:
-    st.balloons()
-    st.success("🔥 ¡Es hora de ponerte mamado y fuerte! 🔥")
-
+# Métricas Actualizadas
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("Kcal", f"{k_act:.0f}", f"/{meta_k:.0f}")
-m2.metric("Proteína", f"{p_act:.1f}g", f"/{meta_p:.0f}g")
-m3.metric("Agua", f"{st.session_state.h2o:.1f}L", f"/{meta_agua:.1f}L")
-m4.metric("Pasos", f"{st.session_state.steps}", "/8000")
+m1.metric("Kcal Consumidas", f"{k_act:.0f}", f"Meta: {meta_k:.0f}")
+m2.metric("Proteína", f"{p_act:.1f}g", f"Meta: {meta_p:.0f}g")
+m3.metric("Kcal Quemadas (Pasos)", f"{kcal_pasos:.0f} kcal")
+m4.metric("Balance Neto", f"{(k_act - kcal_pasos):.0f} kcal")
 
 t1, t2 = st.tabs(["📈 ANÁLISIS", "🍽️ REGISTRO"])
 
@@ -140,5 +141,3 @@ if btn_vigilar and target:
             df_t['f'] = pd.to_datetime(df_t['created_at']).dt.date
             hoy_t = df_t[df_t['f'] == hoy.date()]
             st.metric(f"Proteína de {target}", f"{hoy_t['proteina'].sum():.1f}g")
-            st.table(hoy_t[['comida', 'proteina', 'kcal']])
-    except: st.error("Error al buscar.")
