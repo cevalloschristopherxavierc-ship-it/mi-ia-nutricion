@@ -50,7 +50,6 @@ st.markdown("""
 if 'usuario' not in st.session_state:
     st.session_state.usuario = None
 
-# Si no hay usuario, mostrar FORMULARIO DE REGISTRO
 if st.session_state.usuario is None:
     st.markdown("<h2 style='text-align: center;'>📋 REGISTRO DE PERFIL</h2>", unsafe_allow_html=True)
     with st.form("registro_completo"):
@@ -66,6 +65,71 @@ if st.session_state.usuario is None:
         
         if enviar:
             if nombre:
-                # Cálculos
+                # CÁLCULOS (Paréntesis corregido aquí abajo)
                 meta_p = peso * 2
-                imc = round(peso / ((altura/100)**2), 1
+                imc_calc = round(peso / ((altura/100)**2), 1)
+                
+                user_data = {
+                    "nombre": nombre, 
+                    "peso": peso, 
+                    "altura": altura, 
+                    "edad": edad, 
+                    "meta_p": meta_p,
+                    "imc": imc_calc
+                }
+                
+                # Guardar en Supabase
+                try:
+                    supabase.table('usuarios').insert({
+                        "nombre": nombre, 
+                        "peso": peso, 
+                        "altura": altura, 
+                        "edad": edad, 
+                        "meta_proteina": meta_p
+                    }).execute()
+                except: pass
+                
+                st.session_state.usuario = user_data
+                st.rerun()
+            else:
+                st.error("⚠️ El nombre es obligatorio.")
+    st.stop()
+
+# ==========================================
+# 5. INTERFAZ PRINCIPAL (ESCÁNER)
+# ==========================================
+u = st.session_state.usuario
+
+with st.sidebar:
+    st.title("📂 BIOMETRÍA")
+    st.success(f"AGENTE: {u.get('nombre', 'DESC').upper()}")
+    st.write(f"⚖️ Peso: {u.get('peso', 0)} kg")
+    st.write(f"📏 Altura: {u.get('altura', 0)} cm")
+    st.write(f"📊 IMC: {u.get('imc', 0)}")
+    st.divider()
+    st.write(f"🎯 **Meta Proteína: {u.get('meta_p', 0)}g**")
+    
+    if "xavier" in u.get('nombre', '').lower():
+        st.divider()
+        st.markdown("### 👑 MODO CREADOR")
+        if st.button("📊 VER TODOS LOS USUARIOS"):
+            try:
+                res = supabase.table('usuarios').select('*').execute()
+                st.dataframe(res.data)
+            except: st.error("Error en base de datos.")
+            
+    if st.button("🚪 CERRAR SESIÓN"):
+        st.session_state.clear()
+        st.rerun()
+
+st.subheader("📸 ESCÁNER NUTRICIONAL")
+f = st.file_uploader("Sube la foto de tu comida", type=["jpg", "png", "jpeg"])
+
+if f:
+    img_b64 = base64.b64encode(f.read()).decode('utf-8')
+    st.image(f, use_container_width=True)
+    
+    if st.button("🔍 ANALIZAR NUTRIENTES"):
+        with st.spinner("🤖 Jarvis Xavier analizando..."):
+            payload = {"contents": [{"parts": [
+                {"text": "Responde solo: Nombre|Kcal|Prot|Carb|Gras"},
