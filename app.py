@@ -6,24 +6,26 @@ import PIL.Image
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="Jarvis Core - Xavier", page_icon="🦾", layout="wide")
 
-# Configuración de la IA (Cerebro Gemini)
+# Configuración de la IA (Ajuste para evitar error 404)
 try:
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        model = genai.GenerativeModel('models/gemini-1.5-flash')
+        # CAMBIO AQUÍ: Usamos el nombre directo sin el prefijo "models/"
+        # Algunas versiones de la API v1beta fallan con el prefijo completo
+        model = genai.GenerativeModel('gemini-1.5-flash') 
     else:
         st.error("⚠️ No se encontró GOOGLE_API_KEY en Secrets.")
 except Exception as e:
     st.error(f"⚠️ Error de configuración: {e}")
 
-# Memoria de Datos
+# Memoria de Datos (SIN CAMBIOS)
 if 'historial' not in st.session_state:
     st.session_state.historial = {dia: [] for dia in ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]}
 if 'agua' not in st.session_state: st.session_state.agua = 0
 if 'pasos' not in st.session_state: st.session_state.pasos = 0
 if 'biometria_completada' not in st.session_state: st.session_state.biometria_completada = False
 
-# Funciones de Tiempo
+# Funciones de Tiempo (SIN CAMBIOS)
 def obtener_bloque_comida():
     h = datetime.now().hour
     if 5 <= h < 12: return "Desayuno"
@@ -34,7 +36,7 @@ def obtener_dia_actual():
     dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     return dias[datetime.now().weekday()]
 
-# Estilo Visual Jarvis Dark
+# Estilo Visual Jarvis Dark (SIN CAMBIOS)
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
@@ -106,6 +108,7 @@ with t_ia:
             prompt = "Analyze the image. Return ONLY 6 numbers separated by commas: calories, protein, carbs, fat, fiber, sugar. Example: 250, 25, 30, 8, 4, 2. No conversation."
             with st.spinner("Jarvis identificando nutrientes..."):
                 try:
+                    # Usamos la generación de contenido estándar
                     response = model.generate_content([prompt, img])
                     res_text = response.text.strip().replace('\n', '')
                     d = [float(x.strip()) for x in res_text.split(',')]
@@ -147,5 +150,4 @@ if st.sidebar.button("➕ Añadir Vaso"): st.session_state.agua += 1
 if st.sidebar.button("🔄 Reiniciar"): st.session_state.agua = 0
 st.sidebar.write(f"Vasos: {st.session_state.agua}/12")
 st.sidebar.markdown("---")
-# LÍNEA CORREGIDA ABAJO:
 st.session_state.pasos = st.sidebar.number_input("👣 PASOS HOY:", value=st.session_state.pasos, step=500)
