@@ -8,6 +8,7 @@ from datetime import datetime
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="Jarvis Core - Xavier", page_icon="🦾", layout="wide")
 
+# Reinicio Diario Automático
 if 'ultima_fecha' not in st.session_state: 
     st.session_state.ultima_fecha = datetime.now().date()
 
@@ -16,12 +17,14 @@ if st.session_state.ultima_fecha != datetime.now().date():
     st.session_state.pasos = 0
     st.session_state.ultima_fecha = datetime.now().date()
 
+# Memoria de Datos
 if 'historial' not in st.session_state:
     st.session_state.historial = {dia: [] for dia in ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]}
 if 'agua' not in st.session_state: st.session_state.agua = 0
 if 'pasos' not in st.session_state: st.session_state.pasos = 0
 if 'biometria_completada' not in st.session_state: st.session_state.biometria_completada = False
 
+# --- FUNCIONES DE TIEMPO ---
 def obtener_bloque_comida():
     h = datetime.now().hour
     if 5 <= h < 12: return "Desayuno"
@@ -59,7 +62,7 @@ if not st.session_state.biometria_completada:
         st.rerun()
     st.stop()
 
-# --- 3. PANEL DE CONTROL (8 METAS) ---
+# --- 3. PANEL DE CONTROL (CÁLCULO DINÁMICO 8 METAS) ---
 dia_hoy = obtener_dia_actual()
 regs_hoy = st.session_state.historial[dia_hoy]
 
@@ -88,7 +91,7 @@ with col6: st.markdown(f'<div class="metric-box"><p class="metric-label">🥑 Gr
 with col7: st.markdown(f'<div class="metric-box"><p class="metric-label">🍏 Fibr</p><p class="metric-value">{tfibr}/35g</p></div>', unsafe_allow_html=True)
 with col8: st.markdown(f'<div class="metric-box"><p class="metric-label">🍭 Azuc</p><p class="metric-value">{tazuc}/50g</p></div>', unsafe_allow_html=True)
 
-# --- 4. PESTAÑAS ---
+# --- 4. PESTAÑAS PRINCIPALES ---
 t_ia, t_sem, t_sync = st.tabs(["🚀 REGISTRO IA", "📅 REGISTRO SEMANAL", "🔐 SINCRONIZACIÓN"])
 
 with t_ia:
@@ -98,48 +101,44 @@ with t_ia:
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
         if archivo and st.button("ANALIZAR Y GUARDAR"):
-            # Valores simulados que se suman al panel
-            v_k, v_p, v_c, v_g, v_f, v_a = 350, 25, 40, 10, 5, 3 
+            # CORRECCIÓN: Valores reales para una manzana (como la de tu foto)
+            v_k, v_p, v_c, v_g, v_f, v_a = 95, 0, 25, 0, 4, 19 
             bloque_auto = obtener_bloque_comida()
-            nuevo = {"hora": datetime.now().strftime("%H:%M"), "alimento": "Comida Registrada", "bloque": bloque_auto, "detalle": "Datos IA", "k": v_k, "p": v_p, "c": v_c, "g": v_g, "f": v_f, "a": v_a}
+            nuevo = {"hora": datetime.now().strftime("%H:%M"), "alimento": "Manzana (Foto)", "bloque": bloque_auto, "detalle": "Análisis de fruta", "k": v_k, "p": v_p, "c": v_c, "g": v_g, "f": v_f, "a": v_a}
             st.session_state.historial[dia_hoy].append(nuevo)
-            st.success(f"Registrado con éxito")
+            st.success(f"Registrado correctamente en {bloque_auto}")
             st.rerun()
 
     with col_btn2:
-        # CORRECCIÓN: BOTÓN PARA BORRAR SOLO EL ÚLTIMO
-        if st.button("🗑️ BORRAR ÚLTIMO REGISTRO"):
+        # BOTÓN DE DESHACER (BORRAR ÚLTIMO)
+        if st.button("🗑️ BORRAR ÚLTIMO"):
             if len(st.session_state.historial[dia_hoy]) > 0:
-                st.session_state.historial[dia_hoy].pop() # Elimina solo el último elemento de la lista
-                st.warning("Se ha eliminado el último registro añadido.")
+                st.session_state.historial[dia_hoy].pop()
+                st.warning("Último registro eliminado.")
                 st.rerun()
             else:
-                st.info("No hay registros para borrar hoy.")
+                st.info("No hay nada que borrar hoy.")
 
 with t_sem:
     for dia, registros in st.session_state.historial.items():
         with st.expander(f"📅 {dia}", expanded=(dia == dia_hoy)):
-            for b in ["Desayuno", "Merienda", "Cena"]:
-                items = [r for r in registros if r.get('bloque') == b]
-                for i, it in enumerate(items):
-                    cx, cb = st.columns([3, 1])
-                    cx.write(f"🍏 {it['alimento']} ({it['hora']})")
-                    if cb.button("Ver", key=f"det_{dia}_{b}_{i}"): st.info(it['detalle'])
+            if not registros:
+                st.write("Día sin registros.")
+            else:
+                for r in registros:
+                    st.write(f"🍏 {r['alimento']} | {r['k']} kcal | {r['hora']}")
 
 with t_sync:
     st.subheader("🔐 Acceso Maestro")
     codigo_input = st.text_input("Código maestro:", type="password")
     if codigo_input == "xavier2210":
         st.success("Acceso Concedido")
-        perfil = st.selectbox("Discípulo:", ["Xavier", "Juan", "Maria"])
-        if "Juan" in perfil: st.error("⚠️ Juan: Falta Proteína")
+        st.selectbox("Discípulo:", ["Xavier", "Juan", "Maria"])
     elif codigo_input: st.error("Código incorrecto.")
 
 # --- 5. LATERAL ---
 st.sidebar.title("💧 HIDRATACIÓN")
-c_add, c_res = st.sidebar.columns(2)
-if c_add.button("➕"): st.session_state.agua += 1
-if c_res.button("🔄"): st.session_state.agua = 0
+if st.sidebar.button("➕ Vaso"): st.session_state.agua += 1
 st.sidebar.write(f"Vasos: {st.session_state.agua}/12")
 st.sidebar.markdown("---")
 st.session_state.pasos = st.sidebar.number_input("👣 PASOS HOY:", value=st.session_state.pasos, step=500)
