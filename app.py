@@ -2,45 +2,39 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 import requests
+import os
 
-# --- 1. CONFIGURACIÓN DE PÁGINA ---
+# --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="Jarvis Core", page_icon="🦾", layout="wide")
 
-# --- 2. CONFIGURACIÓN DE IA (ESTABILIZACIÓN TOTAL) ---
+# --- 2. CONFIGURACIÓN DE IA (SOLUCIÓN RADICAL) ---
 if "GOOGLE_API_KEY" in st.secrets:
+    # Limpiamos cualquier configuración previa
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
     
-    # Configuramos el modelo para que use la versión de producción, no la beta
-    generation_config = {
-        "temperature": 0.4,
-        "top_p": 1,
-        "top_k": 32,
-        "max_output_tokens": 2048,
-    }
-    
     try:
-        # Usamos el nombre del modelo sin prefijos raros
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            generation_config=generation_config
-        )
+        # CAMBIO CLAVE: Usamos 'gemini-1.5-flash-latest'
+        # Este nombre es el más compatible actualmente
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
     except Exception as e:
-        st.error(f"Error de inicialización: {e}")
+        st.error(f"Error al despertar a Jarvis: {e}")
 else:
     st.error("⚠️ Error: Falta 'GOOGLE_API_KEY' en los Secrets.")
 
 # --- 3. LÓGICA DE NUTRICIÓN ---
 SISTEMA_EXPERTO = """
-Analiza la imagen como un experto en nutrición deportiva. 
-Dime: 1. Alimentos. 2. Calorías y Macros (Prot/Carb/Fat). 
-3. ¿Sirve para hipertrofia de pierna/glúteo? 
-4. Recomendación técnica.
+Actúa como Jarvis, experto en nutrición para hipertrofia de pierna y glúteo.
+Analiza la imagen de comida de Xavier y entrega:
+1. Alimentos. 2. Macros aprox (Cal, Prot, Carb, Fat).
+3. Evaluación para ganar masa muscular.
+4. ¿Qué falta para optimizar el plato?
+Sé breve, técnico y motivador.
 """
 
 # --- 4. INTERFAZ ---
 st.title("🦾 JARVIS CORE: SYSTEM V1.0")
 
-archivo = st.file_uploader("Sube tu comida...", type=["jpg", "png", "jpeg"])
+archivo = st.file_uploader("Sube tu plato, Xavier...", type=["jpg", "png", "jpeg"])
 
 if archivo:
     img = Image.open(archivo)
@@ -49,19 +43,17 @@ if archivo:
     if st.button("ANALIZAR MACROS"):
         with st.spinner("🤖 Jarvis analizando..."):
             try:
-                # Intentamos la generación de contenido
-                # Nota: Pasamos la imagen directamente en una lista
+                # Intento de generación con el nuevo nombre de modelo
                 response = model.generate_content([SISTEMA_EXPERTO, img])
                 st.success("Análisis completado:")
                 st.markdown(response.text)
             except Exception as e:
-                # Si sale el 404, mostramos un mensaje de diagnóstico
-                st.error(f"Error crítico: {e}")
-                st.info("💡 REVISIÓN FINAL: Ve a tu panel de Streamlit Cloud, dale a 'Reboot App'. A veces el servidor se queda trabado con versiones viejas y necesita un reinicio total.")
+                st.error(f"Error persistente: {e}")
+                st.info("💡 XAVIER: Si esto falla, el problema es tu API KEY. Ve a AI Studio, crea una NUEVA y asegúrate de elegir 'Gemini API' y no una de 'Google Cloud'.")
 
 # --- 5. CONTROL ---
 if st.button("ENCENDER CHRIS-TV"):
     key = st.secrets.get("IFTTT_KEY", "bQpyH6xT10n6e2YJsTXE_oK22s7GQTLuqEiMFNNrvDd")
     url = f"https://maker.ifttt.com/trigger/prender_tele/with/key/{key}"
     requests.post(url)
-    st.success("Señal enviada.")
+    st.success("Señal enviada a la tele.")
