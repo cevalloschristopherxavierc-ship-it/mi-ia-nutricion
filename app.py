@@ -4,70 +4,66 @@ import base64
 from PIL import Image
 import io
 
-# --- 1. CONFIGURACIÓN ---
-st.set_page_config(page_title="Jarvis Core", page_icon="🦾")
+st.set_page_config(page_title="Jarvis Core - Debug", page_icon="🦾")
 
-# --- 2. FUNCIÓN DE CONEXIÓN MAESTRA (Bypass 404) ---
-def analizar_con_jarvis(image_file, api_key):
-    # Convertir imagen a base64
+def test_models(api_key):
+    # Esta función le pregunta a Google: "¿Qué modelos me dejas usar?"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    response = requests.get(url)
+    return response.json()
+
+def analizar_comida(image_file, api_key, model_name):
     img_byte_arr = io.BytesIO()
     image_file.save(img_byte_arr, format='JPEG')
     img_b64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
 
-    # Intentaremos con el nombre de modelo que Google acepta globalmente
-    # Cambiamos la ruta a la versión técnica: models/gemini-1.5-flash-latest
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
     
     payload = {
         "contents": [{
             "parts": [
-                {"text": "Actúa como Jarvis. Analiza esta comida para Xavier. Dame calorías y macros (Proteína, Carb, Grasa) enfocados en hipertrofia de pierna y glúteo."},
+                {"text": "Analiza esta comida para hipertrofia. Dame macros y calorías."},
                 {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
             ]
         }]
     }
-    
-    response = requests.post(url, json=payload)
-    return response.json()
+    return requests.post(url, json=payload).json()
 
-# --- 3. INTERFAZ ---
-st.title("🦾 JARVIS CORE: SYSTEM V1.3")
+st.title("🦾 JARVIS CORE: DEBUG MODE")
 
 if "GOOGLE_API_KEY" in st.secrets:
     api_key = st.secrets["GOOGLE_API_KEY"]
-else:
-    st.error("⚠️ Error: Configura GOOGLE_API_KEY en los Secrets.")
-    st.stop()
-
-archivo = st.file_uploader("Sube tu plato de hoy...", type=["jpg", "png", "jpeg"])
-
-if archivo:
-    img = Image.open(archivo)
-    st.image(img, use_container_width=True)
     
-    if st.button("EJECUTAR ESCANEO"):
-        with st.spinner("🤖 Jarvis accediendo al satélite..."):
-            try:
-                res = analizar_con_jarvis(img, api_key)
-                
-                # Manejo de respuesta
-                if 'candidates' in res:
-                    texto = res['candidates'][0]['content']['parts'][0]['text']
-                    st.success("Análisis completado:")
-                    st.markdown(texto)
-                elif 'error' in res:
-                    # Si falla el primero, el código te dirá qué está pasando exactamente
-                    st.error(f"Respuesta de Google: {res['error']['message']}")
-                    st.info("💡 Tip: Verifica que en AI Studio hayas habilitado 'Gemini API' y no estés usando una clave de Google Cloud restringida.")
-                else:
-                    st.error(f"Error desconocido: {res}")
-            except Exception as e:
-                st.error(f"Fallo de sistema: {e}")
+    # BOTÓN DE DIAGNÓSTICO
+    if st.button("🔍 PASO 1: VERIFICAR MODELOS DISPONIBLES"):
+        res = test_models(api_key)
+        if 'models' in res:
+            st.success("¡Llave conectada! Modelos que puedes usar:")
+            # Listamos los modelos para ver si 'gemini-1.5-flash' aparece
+            modelos = [m['name'] for m in res['models']]
+            st.write(modelos)
+            if 'models/gemini-1.5-flash' in modelos:
+                st.info("✅ El modelo Flash ESTÁ disponible. El error era la ruta.")
+            else:
+                st.warning("❌ El modelo Flash NO está en tu lista. Intenta con 'gemini-pro-vision'.")
+        else:
+            st.error(f"Error de llave: {res}")
 
-# Registro de entrenamiento
-st.markdown("---")
-st.subheader("🏋️ Log de Fuerza")
-ejer = st.selectbox("Ejercicio:", ["Smith Machine Lunges", "Hip Thrust", "RDL"])
-peso = st.number_input("Peso (lb):", 0)
-if st.button("REGISTRAR"):
-    st.success(f"Dato guardado: {ejer} a {peso}lb. ¡Buen trabajo, Xavier!")
+    st.markdown("---")
+    
+    # PASO 2: ANÁLISIS
+    archivo = st.file_uploader("Sube tu plato...", type=["jpg", "jpeg", "png"])
+    if archivo:
+        img = Image.open(archivo)
+        st.image(img, use_container_width=True)
+        
+        if st.button("🚀 PASO 2: EJECUTAR ANÁLISIS"):
+            # Intentamos con el nombre técnico exacto
+            res_ia = analizar_comida(img, api_key, "gemini-1.5-flash")
+            if 'candidates' in res_ia:
+                st.markdown(res_ia['candidates'][0]['content']['parts'][0]['text'])
+            else:
+                st.error(f"Google dice: {res_ia.get('error', {}).get('message', 'Error desconocido')}")
+
+else:
+    st.error("No hay API Key en Secrets.")
