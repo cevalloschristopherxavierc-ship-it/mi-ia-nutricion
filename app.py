@@ -14,7 +14,7 @@ if 'historial' not in st.session_state:
 if 'agua' not in st.session_state: st.session_state.agua = 0
 if 'biometria_completada' not in st.session_state: st.session_state.biometria_completada = False
 
-# Función para determinar el bloque de comida según la hora
+# Función para determinar el bloque de comida según la hora exacta
 def obtener_bloque_comida():
     hora = datetime.now().hour
     if 6 <= hora < 12: return "Desayuno"
@@ -25,11 +25,7 @@ def obtener_dia_actual():
     dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     return dias[datetime.now().weekday()]
 
-# Reinicio automático los Domingos a las 23:59 (Lógica de bucle)
-if obtener_dia_actual() == "Domingo" and datetime.now().hour == 23 and datetime.now().minute == 59:
-    st.session_state.historial = {dia: [] for dia in ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]}
-
-# Estilo visual de tu captura
+# Estilo visual Premium
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
@@ -39,19 +35,19 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. IDENTIFICACIÓN Y BIOMETRÍA (AL INICIO, UNA SOLA VEZ) ---
+# --- 2. IDENTIFICACIÓN Y BIOMETRÍA (PÁGINA DE INICIO - SOLO UNA VEZ) ---
 if not st.session_state.biometria_completada:
     st.title("👤 Identificación y Biometría")
     col_b1, col_b2 = st.columns(2)
     with col_b1:
-        u_nombre = st.text_input("Nombre:", value="Xavier")
+        u_nom = st.text_input("Nombre:", value="Xavier")
         u_edad = st.number_input("Edad:", value=20)
     with col_b2:
         u_peso = st.number_input("Peso Actual (kg):", value=75.0)
-        u_altura = st.number_input("Altura (cm):", value=175)
+        u_alt = st.number_input("Altura (cm):", value=175)
     
     if st.button("🚀 INICIAR PANEL DE CONTROL"):
-        st.session_state.u_datos = {"nombre": u_nombre, "peso": u_peso, "altura": u_altura, "edad": u_edad}
+        st.session_state.u_datos = {"nombre": u_nom, "peso": u_peso, "altura": u_alt, "edad": u_edad}
         st.session_state.biometria_completada = True
         st.rerun()
     st.stop()
@@ -60,18 +56,19 @@ if not st.session_state.biometria_completada:
 st.sidebar.title("🔋 ESTADO")
 with st.sidebar.expander("📝 Reporte", expanded=True):
     st.select_slider("Energía:", options=["Baja", "Normal", "Alta", "Máxima"])
-    if st.button("🔄 Repetir Preguntas Biometría"):
+    if st.button("🔄 Repetir Biometría"):
         st.session_state.biometria_completada = False
         st.rerun()
 
 st.title(f"📊 Panel de Control: {datetime.now().strftime('%d/%m/%Y')}")
 dia_hoy = obtener_dia_actual()
 
-# Métricas con todos los nutrientes
-registros_hoy = st.session_state.historial[dia_hoy]
-tkcal = sum(r.get('kcal', 0) for r in registros_hoy)
-tprot = sum(r.get('prot', 0) for r in registros_hoy)
+# Cálculos dinámicos
+regs_hoy = st.session_state.historial[dia_hoy]
+tkcal = sum(r.get('kcal', 0) for r in regs_hoy)
+tprot = sum(r.get('prot', 0) for r in regs_hoy)
 
+# 4 Columnas con todos los nutrientes requeridos
 c1, c2, c3, c4 = st.columns(4)
 with c1: st.markdown(f'<div class="metric-box"><p class="metric-label">🔥 Kcal</p><p class="metric-value">{tkcal}/2800</p></div>', unsafe_allow_html=True)
 with c2: st.markdown(f'<div class="metric-box"><p class="metric-label">🍗 Prot</p><p class="metric-value">{tprot}g/160g</p></div>', unsafe_allow_html=True)
@@ -85,56 +82,61 @@ with st.expander("🔐 Sincronización"):
     m_key = st.text_input("Código:", type="password")
     if m_key == "xavier2210": es_maestro = True
 
-# --- 5. PESTAÑAS ---
+# --- 5. PESTAÑAS DINÁMICAS ---
 if es_maestro:
-    tabs = st.tabs(["🚀 REGISTRO IA", "📅 REGISTRO SEMANAL", "👥 CREADOR (DISCÍPULOS)", "💻 REVISIÓN"])
+    tabs = st.tabs(["🚀 REGISTRO IA", "📅 REGISTRO SEMANAL", "👥 CREADOR", "💻 REVISIÓN"])
 else:
     tabs = st.tabs(["🚀 PRUEBA IA", "📅 REGISTRO SEMANAL"])
 
-# --- 6. ESCANEO CON HORARIO INTELIGENTE ---
+# --- 6. ESCANEO CON PESO Y NUTRIENTES ---
 def analizar_y_agendar(img, api_key):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
     img_byte_arr = io.BytesIO()
     img.save(img_byte_arr, format='JPEG')
     img_b64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
     
-    prompt = "Dame el peso aprox y nutrientes nombrados (Kcal, Carbohidratos, Azúcares, Fibra, Proteína). Sé breve."
+    prompt = "Dame el peso aprox y nutrientes: Calorías, Carbohidratos (Azúcares/Fructosa), Fibra, Proteína. Sé conciso."
     payload = {"contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}]}]}
-    res = requests.post(url, json=payload).json()
     
-    if 'candidates' in res:
+    try:
+        res = requests.post(url, json=payload).json()
         texto = res['candidates'][0]['content']['parts'][0]['text']
         bloque = obtener_bloque_comida()
+        # SE AGREGA 'bloque' PARA EVITAR KEYERROR
         nuevo = {"hora": datetime.now().strftime("%H:%M"), "bloque": bloque, "detalle": texto, "kcal": 0, "prot": 0}
         st.session_state.historial[dia_hoy].append(nuevo)
         return texto, bloque
-    return "Error", ""
+    except:
+        return "Fallo en análisis.", "Error"
 
-# --- 7. CONTENIDO ---
+# --- 7. CONTENIDO DE PESTAÑAS ---
 with tabs[0]:
     st.subheader("📷 Escaneo de Nutrientes")
-    archivo = st.file_uploader("Subir plato...", type=["jpg", "png", "jpeg"])
+    archivo = st.file_uploader("Subir foto del plato...", type=["jpg", "png", "jpeg"])
     if archivo and st.button("ANALIZAR Y REGISTRAR"):
         res, blq = analizar_y_agendar(Image.open(archivo), st.secrets["GOOGLE_API_KEY"])
-        st.success(f"Registrado en {blq}: {res}")
+        st.success(f"Registrado en **{blq}**: {res}")
 
-with tabs[1]: # REGISTRO SEMANAL
+with tabs[1]:
     st.subheader("📅 Registro Semanal")
     for dia, regs in st.session_state.historial.items():
         with st.expander(f"📍 {dia}", expanded=(dia == dia_hoy)):
             for b in ["Desayuno", "Merienda", "Cena"]:
                 st.markdown(f"**--- {b} ---**")
-                comidas_bloque = [r for r in regs if r['bloque'] == b]
+                # .get('bloque') es el escudo contra el KeyError
+                comidas_bloque = [r for r in regs if r.get('bloque') == b]
                 if comidas_bloque:
                     for c in comidas_bloque: st.info(f"{c['hora']}: {c['detalle']}")
-                else: st.write("Sin registros.")
+                else: st.write("Sin registros en este bloque.")
 
 if es_maestro:
-    with tabs[2]: # CREADOR / DISCÍPULOS
-        st.subheader("👥 Panel de Creador - Supervisión de Discípulos")
-        st.write("Registros detectados en el sistema central:")
-        # Simulación de ver otros perfiles (Historial global)
-        st.json(st.session_state.historial)
+    with tabs[2]: # PANEL DE CREADOR PARA VER DISCÍPULOS
+        st.subheader("👥 Panel de Creador - Supervisión")
+        st.write(f"Viendo perfil activo: **{st.session_state.u_datos['nombre']}**")
+        st.json(st.session_state.historial) # Aquí supervisas todos los movimientos
+        if st.button("🗑️ Resetear Historial Semanal"):
+            st.session_state.historial = {dia: [] for dia in st.session_state.historial}
+            st.rerun()
 
 # --- 8. HIDRATACIÓN ---
 st.sidebar.markdown("---")
