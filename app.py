@@ -6,11 +6,10 @@ import PIL.Image
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="Jarvis Core - Xavier", page_icon="🦾", layout="wide")
 
-# Configuración de la IA con manejo de errores mejorado
+# Configuración de la IA (Cerebro Gemini)
 try:
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        # CAMBIO CLAVE: Usamos 'models/gemini-1.5-flash' para asegurar que lo encuentre
         model = genai.GenerativeModel('models/gemini-1.5-flash')
     else:
         st.error("⚠️ No se encontró GOOGLE_API_KEY en Secrets.")
@@ -104,12 +103,10 @@ with t_ia:
     with c_b1:
         if archivo and st.button("ANALIZAR CON JARVIS"):
             img = PIL.Image.open(archivo)
-            # Prompt optimizado
             prompt = "Analyze the image. Return ONLY 6 numbers separated by commas: calories, protein, carbs, fat, fiber, sugar. Example: 250, 25, 30, 8, 4, 2. No conversation."
             with st.spinner("Jarvis identificando nutrientes..."):
                 try:
                     response = model.generate_content([prompt, img])
-                    # Limpieza profunda de la respuesta
                     res_text = response.text.strip().replace('\n', '')
                     d = [float(x.strip()) for x in res_text.split(',')]
                     
@@ -150,4 +147,5 @@ if st.sidebar.button("➕ Añadir Vaso"): st.session_state.agua += 1
 if st.sidebar.button("🔄 Reiniciar"): st.session_state.agua = 0
 st.sidebar.write(f"Vasos: {st.session_state.agua}/12")
 st.sidebar.markdown("---")
-st.session_state.pasos = st.sidebar.number_input("👣 PASOS HOY:", value=
+# LÍNEA CORREGIDA ABAJO:
+st.session_state.pasos = st.sidebar.number_input("👣 PASOS HOY:", value=st.session_state.pasos, step=500)
