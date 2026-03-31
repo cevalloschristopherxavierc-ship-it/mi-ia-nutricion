@@ -6,12 +6,16 @@ import PIL.Image
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="Jarvis Core - Xavier", page_icon="🦾", layout="wide")
 
-# Configuración de la IA (Cerebro Gemini)
+# Configuración de la IA con manejo de errores mejorado
 try:
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-flash')
-except:
-    st.error("⚠️ Error: Configura tu GOOGLE_API_KEY en los Secrets de Streamlit.")
+    if "GOOGLE_API_KEY" in st.secrets:
+        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+        # CAMBIO CLAVE: Usamos 'models/gemini-1.5-flash' para asegurar que lo encuentre
+        model = genai.GenerativeModel('models/gemini-1.5-flash')
+    else:
+        st.error("⚠️ No se encontró GOOGLE_API_KEY en Secrets.")
+except Exception as e:
+    st.error(f"⚠️ Error de configuración: {e}")
 
 # Memoria de Datos
 if 'historial' not in st.session_state:
@@ -100,18 +104,22 @@ with t_ia:
     with c_b1:
         if archivo and st.button("ANALIZAR CON JARVIS"):
             img = PIL.Image.open(archivo)
-            prompt = "Analiza la imagen y devuelve SOLO 6 números separados por comas: kcal, proteina, carbos, grasa, fibra, azucar. Ejemplo: 200, 20, 15, 5, 2, 1. No añadas texto adicional."
+            # Prompt optimizado
+            prompt = "Analyze the image. Return ONLY 6 numbers separated by commas: calories, protein, carbs, fat, fiber, sugar. Example: 250, 25, 30, 8, 4, 2. No conversation."
             with st.spinner("Jarvis identificando nutrientes..."):
-                response = model.generate_content([prompt, img])
                 try:
-                    texto_limpio = response.text.replace('\\n', '').strip()
-                    d = [float(x.strip()) for x in texto_limpio.split(',')]
+                    response = model.generate_content([prompt, img])
+                    # Limpieza profunda de la respuesta
+                    res_text = response.text.strip().replace('\n', '')
+                    d = [float(x.strip()) for x in res_text.split(',')]
+                    
                     bloque = obtener_bloque_comida()
                     nuevo = {"hora": datetime.now().strftime("%H:%M"), "alimento": "Plato Detectado", "bloque": bloque, "k": d[0], "p": d[1], "c": d[2], "g": d[3], "f": d[4], "a": d[5]}
                     st.session_state.historial[dia_hoy].append(nuevo)
                     st.success(f"✅ ¡Añadido! {d[0]} Kcal")
                     st.rerun()
-                except: st.error("Error al leer la imagen. Verifica tu API Key.")
+                except Exception as e: 
+                    st.error(f"Error de IA: {e}")
     
     with c_b2:
         if st.button("🗑️ BORRAR ÚLTIMO"):
@@ -129,19 +137,17 @@ with t_sem:
                     st.write(f"🍏 {r.get('bloque')}: {r.get('k')} Kcal - {r.get('hora')}")
 
 with t_sync:
-    st.subheader("🔐 Modo Maestro Creador")
-    pass_maestra = st.text_input("Código de Acceso:", type="password")
+    st.subheader("🔐 Modo Maestro")
+    pass_maestra = st.text_input("Código:", type="password")
     if pass_maestra == "xavier2210":
-        st.success("Acceso Concedido: Modo Maestro")
-        disc_sel = st.selectbox("Auditar Discípulo:", ["Xavier (Yo)", "Juan (ID-002)", "Maria (ID-003)"])
-        if "Juan" in disc_sel: st.warning("⚠️ Juan: Bajos niveles de proteína hoy.")
+        st.success("Acceso Maestro")
+        st.selectbox("Auditar:", ["Xavier", "Juan", "Maria"])
     elif pass_maestra: st.error("Código Incorrecto.")
 
 # --- 5. BARRA LATERAL ---
 st.sidebar.title("💧 HIDRATACIÓN")
-c_plus, c_reset = st.sidebar.columns(2)
-if c_plus.button("➕"): st.session_state.agua += 1
-if c_reset.button("🔄"): st.session_state.agua = 0
+if st.sidebar.button("➕ Añadir Vaso"): st.session_state.agua += 1
+if st.sidebar.button("🔄 Reiniciar"): st.session_state.agua = 0
 st.sidebar.write(f"Vasos: {st.session_state.agua}/12")
 st.sidebar.markdown("---")
-st.session_state.pasos = st.sidebar.number_input("👣 PASOS HOY:", value=st.session_state.pasos, step=500)
+st.session_state.pasos = st.sidebar.number_input("👣 PASOS HOY:", value=
