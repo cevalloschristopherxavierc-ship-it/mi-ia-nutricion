@@ -6,129 +6,139 @@ import io
 from datetime import datetime
 
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
-st.set_page_config(page_title="Panel Xavier - Jarvis Core", page_icon="🦾", layout="wide")
+st.set_page_config(page_title="Jarvis Core - Xavier", page_icon="🦾", layout="wide")
 
-# Base de datos en sesión
+# Inicializar base de datos y estados
 if 'historial' not in st.session_state:
     st.session_state.historial = {dia: [] for dia in ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]}
 if 'agua' not in st.session_state: st.session_state.agua = 0
+if 'biometria_completada' not in st.session_state: st.session_state.biometria_completada = False
+
+# Función para determinar el bloque de comida según la hora
+def obtener_bloque_comida():
+    hora = datetime.now().hour
+    if 6 <= hora < 12: return "Desayuno"
+    elif 12 <= hora < 17: return "Merienda"
+    else: return "Cena"
 
 def obtener_dia_actual():
     dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     return dias[datetime.now().weekday()]
 
-# Estilo visual de tu captura (MODO OSCURO PREMIUM)
+# Reinicio automático los Domingos a las 23:59 (Lógica de bucle)
+if obtener_dia_actual() == "Domingo" and datetime.now().hour == 23 and datetime.now().minute == 59:
+    st.session_state.historial = {dia: [] for dia in ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]}
+
+# Estilo visual de tu captura
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
-    .metric-box {
-        background-color: #1e2130;
-        padding: 20px;
-        border-radius: 12px;
-        text-align: center;
-        border: 1px solid #30363d;
-    }
-    .metric-label { font-size: 16px; color: #8b949e; margin-bottom: 5px; }
-    .metric-value { font-size: 28px; font-weight: bold; color: #00d4ff; }
+    .metric-box { background-color: #1e2130; padding: 15px; border-radius: 12px; text-align: center; border: 1px solid #30363d; }
+    .metric-label { font-size: 14px; color: #8b949e; }
+    .metric-value { font-size: 20px; font-weight: bold; color: #00d4ff; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. PREGUNTAS DEL INICIO (TUS DETALLES) ---
-st.sidebar.title("🔋 PROTOCOLO DE INICIO")
-with st.sidebar.expander("👤 Identificación y Biometría", expanded=True):
-    u_nombre = st.text_input("Nombre:", value="Xavier")
-    u_edad = st.number_input("Edad:", value=20)
-    u_peso = st.number_input("Peso (kg):", value=75.0)
-    u_altura = st.number_input("Altura (cm):", value=175)
+# --- 2. IDENTIFICACIÓN Y BIOMETRÍA (AL INICIO, UNA SOLA VEZ) ---
+if not st.session_state.biometria_completada:
+    st.title("👤 Identificación y Biometría")
+    col_b1, col_b2 = st.columns(2)
+    with col_b1:
+        u_nombre = st.text_input("Nombre:", value="Xavier")
+        u_edad = st.number_input("Edad:", value=20)
+    with col_b2:
+        u_peso = st.number_input("Peso Actual (kg):", value=75.0)
+        u_altura = st.number_input("Altura (cm):", value=175)
     
-with st.sidebar.expander("📝 Estado Actual", expanded=True):
-    energia = st.select_slider("Energía:", options=["Baja", "Normal", "Alta", "Máxima"])
-    humor = st.selectbox("Ánimo:", ["Motivado", "Cansado", "Enfocado", "Recuperando"])
+    if st.button("🚀 INICIAR PANEL DE CONTROL"):
+        st.session_state.u_datos = {"nombre": u_nombre, "peso": u_peso, "altura": u_altura, "edad": u_edad}
+        st.session_state.biometria_completada = True
+        st.rerun()
+    st.stop()
 
-# --- 3. PANEL DE CONTROL (CAPTURA ORIGINAL 31/03/2026) ---
+# --- 3. PANEL DE CONTROL: 31/03/2026 ---
+st.sidebar.title("🔋 ESTADO")
+with st.sidebar.expander("📝 Reporte", expanded=True):
+    st.select_slider("Energía:", options=["Baja", "Normal", "Alta", "Máxima"])
+    if st.button("🔄 Repetir Preguntas Biometría"):
+        st.session_state.biometria_completada = False
+        st.rerun()
+
 st.title(f"📊 Panel de Control: {datetime.now().strftime('%d/%m/%Y')}")
-
 dia_hoy = obtener_dia_actual()
+
+# Métricas con todos los nutrientes
 registros_hoy = st.session_state.historial[dia_hoy]
-kcal_hoy = sum(r.get('kcal', 0) for r in registros_hoy)
-prot_hoy = sum(r.get('prot', 0) for r in registros_hoy)
+tkcal = sum(r.get('kcal', 0) for r in registros_hoy)
+tprot = sum(r.get('prot', 0) for r in registros_hoy)
 
-# Las 3 cajas grandes de tu captura
-c1, c2, c3 = st.columns(3)
-with c1: st.markdown(f'<div class="metric-box"><p class="metric-label">🔥 Kcal</p><p class="metric-value">{kcal_hoy} / 2800</p></div>', unsafe_allow_html=True)
-with c2: st.markdown(f'<div class="metric-box"><p class="metric-label">🍗 Prot</p><p class="metric-value">{prot_hoy}g / 160g</p></div>', unsafe_allow_html=True)
-with c3: st.markdown('<div class="metric-box"><p class="metric-label">🏃 Quemado</p><p class="metric-value">0 kcal</p></div>', unsafe_allow_html=True)
-
-st.markdown("---")
+c1, c2, c3, c4 = st.columns(4)
+with c1: st.markdown(f'<div class="metric-box"><p class="metric-label">🔥 Kcal</p><p class="metric-value">{tkcal}/2800</p></div>', unsafe_allow_html=True)
+with c2: st.markdown(f'<div class="metric-box"><p class="metric-label">🍗 Prot</p><p class="metric-value">{tprot}g/160g</p></div>', unsafe_allow_html=True)
+with c3: st.markdown('<div class="metric-box"><p class="metric-label">🍝 Carbos</p><p class="metric-value">0g</p></div>', unsafe_allow_html=True)
+with c4: st.markdown('<div class="metric-box"><p class="metric-label">🥑 Grasas</p><p class="metric-value">0g</p></div>', unsafe_allow_html=True)
 
 # --- 4. ACCESO DISCRETO ---
+st.markdown("---")
 es_maestro = False
 with st.expander("🔐 Sincronización"):
-    m_key = st.text_input("Código Maestro:", type="password")
-    if m_key == "xavier2210":
-        es_maestro = True
-        st.success(f"Bienvenido, Creador {u_nombre}.")
+    m_key = st.text_input("Código:", type="password")
+    if m_key == "xavier2210": es_maestro = True
 
 # --- 5. PESTAÑAS ---
 if es_maestro:
-    tabs = st.tabs(["🚀 REGISTRO IA", "📅 HORARIO SEMANAL", "👥 DISCÍPULOS", "💻 REVISIÓN"])
+    tabs = st.tabs(["🚀 REGISTRO IA", "📅 REGISTRO SEMANAL", "👥 CREADOR (DISCÍPULOS)", "💻 REVISIÓN"])
 else:
-    tabs = st.tabs(["🚀 PRUEBA IA", "📅 MI HORARIO"])
+    tabs = st.tabs(["🚀 PRUEBA IA", "📅 REGISTRO SEMANAL"])
 
-# --- 6. MOTOR DE ESCANEO Y GUARDADO ---
-def procesar_nutricion(img, api_key):
+# --- 6. ESCANEO CON HORARIO INTELIGENTE ---
+def analizar_y_agendar(img, api_key):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={api_key}"
     img_byte_arr = io.BytesIO()
     img.save(img_byte_arr, format='JPEG')
     img_b64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
     
-    prompt = """Analiza esta comida para Xavier. Devuelve:
-    Calorías: (solo número)
-    Carbohidratos: (solo número)
-    Azúcares (fructosa natural): (solo número)
-    Fibra: (solo número)
-    Proteína: (solo número)"""
-    
+    prompt = "Dame el peso aprox y nutrientes nombrados (Kcal, Carbohidratos, Azúcares, Fibra, Proteína). Sé breve."
     payload = {"contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}]}]}
     res = requests.post(url, json=payload).json()
     
     if 'candidates' in res:
         texto = res['candidates'][0]['content']['parts'][0]['text']
-        # Registro automático en el historial
-        nuevo = {"hora": datetime.now().strftime("%H:%M"), "detalle": texto, "kcal": 0, "prot": 0}
+        bloque = obtener_bloque_comida()
+        nuevo = {"hora": datetime.now().strftime("%H:%M"), "bloque": bloque, "detalle": texto, "kcal": 0, "prot": 0}
         st.session_state.historial[dia_hoy].append(nuevo)
-        return texto
-    return "Error de escaneo."
+        return texto, bloque
+    return "Error", ""
 
 # --- 7. CONTENIDO ---
 with tabs[0]:
     st.subheader("📷 Escaneo de Nutrientes")
     archivo = st.file_uploader("Subir plato...", type=["jpg", "png", "jpeg"])
-    if archivo and "GOOGLE_API_KEY" in st.secrets:
-        img = Image.open(archivo)
-        st.image(img, use_container_width=True)
-        if st.button("ANALIZAR Y GUARDAR"):
-            st.success(procesar_nutricion(img, st.secrets["GOOGLE_API_KEY"]))
+    if archivo and st.button("ANALIZAR Y REGISTRAR"):
+        res, blq = analizar_y_agendar(Image.open(archivo), st.secrets["GOOGLE_API_KEY"])
+        st.success(f"Registrado en {blq}: {res}")
 
-with tabs[1]:
-    st.subheader(f"📅 Registro Semanal ({u_nombre})")
+with tabs[1]: # REGISTRO SEMANAL
+    st.subheader("📅 Registro Semanal")
     for dia, regs in st.session_state.historial.items():
         with st.expander(f"📍 {dia}", expanded=(dia == dia_hoy)):
-            if not regs: st.write("Sin registros.")
-            for r in regs: st.info(f"**[{r['hora']}]**\n{r['detalle']}")
+            for b in ["Desayuno", "Merienda", "Cena"]:
+                st.markdown(f"**--- {b} ---**")
+                comidas_bloque = [r for r in regs if r['bloque'] == b]
+                if comidas_bloque:
+                    for c in comidas_bloque: st.info(f"{c['hora']}: {c['detalle']}")
+                else: st.write("Sin registros.")
 
 if es_maestro:
-    with tabs[2]:
-        st.subheader("👥 Panel de Discípulos")
-        st.write("Aquí aparecerán los registros de los usuarios que usen tu app.")
-        st.warning("Actualmente visualizando registros globales del sistema.")
-        st.json(st.session_state.historial) # Aquí verás lo de todos
+    with tabs[2]: # CREADOR / DISCÍPULOS
+        st.subheader("👥 Panel de Creador - Supervisión de Discípulos")
+        st.write("Registros detectados en el sistema central:")
+        # Simulación de ver otros perfiles (Historial global)
+        st.json(st.session_state.historial)
 
 # --- 8. HIDRATACIÓN ---
 st.sidebar.markdown("---")
-st.sidebar.subheader(f"💧 Agua: {st.session_state.agua}/12")
-progreso = min(st.session_state.agua / 12, 1.0)
-st.sidebar.progress(progreso)
-if st.sidebar.button("➕ Beber Vaso"):
+if st.sidebar.button("➕ Agua"):
     st.session_state.agua += 1
     st.rerun()
+st.sidebar.write(f"💧 Vasos: {st.session_state.agua}/12")
