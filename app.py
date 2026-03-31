@@ -6,11 +6,12 @@ import PIL.Image
 # --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="Jarvis Core - Xavier", page_icon="🦾", layout="wide")
 
-# Configuración del Motor (Usamos 1.5 Flash para mayor estabilidad de cuota)
+# Configuración del Motor (Solución 1: Usando la ruta directa 'gemini-1.5-flash-latest')
 try:
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        model = genai.GenerativeModel('models/gemini-1.5-flash') 
+        # Ajustamos el nombre para máxima compatibilidad con la API v1beta
+        model = genai.GenerativeModel('gemini-1.5-flash-latest') 
     else:
         st.error("⚠️ No se encontró GOOGLE_API_KEY en los Secrets de Streamlit.")
 except Exception as e:
@@ -23,7 +24,7 @@ if 'agua' not in st.session_state: st.session_state.agua = 0
 if 'pasos' not in st.session_state: st.session_state.pasos = 0
 if 'biometria_completada' not in st.session_state: st.session_state.biometria_completada = False
 
-# Funciones de Inteligencia de Tiempo
+# Funciones de Inteligencia de Tiempo (Contexto Portoviejo)
 def obtener_bloque_comida():
     h = datetime.now().hour
     if 5 <= h < 12: return "Desayuno"
@@ -51,23 +52,24 @@ if not st.session_state.biometria_completada:
     c1, c2 = st.columns(2)
     with c1:
         u_nom = st.text_input("Nombre:", value="Xavier")
-        u_obj = st.selectbox("Objetivo:", ["Subir de peso", "Bajar de peso", "Mantener"])
+        u_obj = st.selectbox("Objetivo Estratégico:", ["Subir de peso", "Bajar de peso", "Mantener"])
     with c2:
         u_pes = st.number_input("Peso Actual (kg):", value=75.0)
         u_alt = st.number_input("Altura (cm):", value=175)
     
     if st.button("🚀 ACTIVAR NÚCLEO"):
+        # Metas de pasos dinámicas
         m_p = 12000 if u_obj == "Bajar de peso" else 8000
         st.session_state.u_datos = {"nombre": u_nom, "peso": u_pes, "altura": u_alt, "objetivo": u_obj, "meta_pasos": m_p}
         st.session_state.biometria_completada = True
         st.rerun()
     st.stop()
 
-# --- 3. PANEL DE CONTROL (8 METAS) ---
+# --- 3. PANEL DE CONTROL (8 METAS DINÁMICAS) ---
 dia_hoy = obtener_dia_actual()
 regs_hoy = st.session_state.historial[dia_hoy]
 
-# Cálculos de totales
+# Cálculos de totales del día
 tkcal = sum(r.get('k', 0) for r in regs_hoy)
 tprot = sum(r.get('p', 0) for r in regs_hoy)
 tcarb = sum(r.get('c', 0) for r in regs_hoy)
@@ -76,21 +78,21 @@ tfibr = sum(r.get('f', 0) for r in regs_hoy)
 tazuc = sum(r.get('a', 0) for r in regs_hoy)
 k_quem = (st.session_state.pasos * 0.04)
 
-# Metas dinámicas según tu objetivo
+# Definición de Metas (Enfoque Hipertrofia)
 m_kcal = 3000 if st.session_state.u_datos['objetivo'] == "Subir de peso" else 2300
-m_prot = int(st.session_state.u_datos['peso'] * 2.2) # Factor 2.2 para hipertrofia
+m_prot = int(st.session_state.u_datos['peso'] * 2.2) 
 m_carb = 350 if st.session_state.u_datos['objetivo'] == "Subir de peso" else 200
 
 st.title(f"📊 Dashboard Jarvis - {dia_hoy}")
 
-# Primera fila de metas
+# Metas Fila 1
 col1, col2, col3, col4 = st.columns(4)
 with col1: st.markdown(f'<div class="metric-box"><p class="metric-label">🔥 Kcal</p><p class="metric-value">{tkcal}/{m_kcal}</p></div>', unsafe_allow_html=True)
 with col2: st.markdown(f'<div class="metric-box"><p class="metric-label">🍗 Prot</p><p class="metric-value">{tprot}/{m_prot}g</p></div>', unsafe_allow_html=True)
 with col3: st.markdown(f'<div class="metric-box"><p class="metric-label">👣 Pasos</p><p class="metric-value">{st.session_state.pasos}/{st.session_state.u_datos["meta_pasos"]}</p></div>', unsafe_allow_html=True)
 with col4: st.markdown(f'<div class="metric-box"><p class="metric-label">🏃 Quemado</p><p class="metric-value">{k_quem:.1f}</p></div>', unsafe_allow_html=True)
 
-# Segunda fila de metas
+# Metas Fila 2
 col5, col6, col7, col8 = st.columns(4)
 with col5: st.markdown(f'<div class="metric-box"><p class="metric-label">🍝 Carb</p><p class="metric-value">{tcarb}/{m_carb}g</p></div>', unsafe_allow_html=True)
 with col6: st.markdown(f'<div class="metric-box"><p class="metric-label">🥑 Gras</p><p class="metric-value">{tgras}/70g</p></div>', unsafe_allow_html=True)
@@ -122,7 +124,7 @@ with t_ia:
                         "k": d[0], "p": d[1], "c": d[2], "g": d[3], "f": d[4], "a": d[5]
                     }
                     st.session_state.historial[dia_hoy].append(nuevo_reg)
-                    st.success(f"✅ ¡Análisis completo! +{d[0]} Kcal añadidas.")
+                    st.success(f"✅ ¡Análisis completo! +{d[0]} Kcal.")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error de cuota o imagen: {e}")
@@ -148,9 +150,7 @@ with t_sync:
     pass_adm = st.text_input("Ingresa Código Maestro:", type="password")
     if pass_adm == "xavier2210":
         st.success("Acceso Concedido, Maestro Xavier.")
-        st.write("### Auditoría de Discípulos")
-        st.selectbox("Seleccionar Guerrero:", ["Xavier (Yo)", "Juan (ID-002)", "Maria (ID-003)"])
-        st.info("Sincronización de datos en tiempo real activa.")
+        st.selectbox("Sincronización de Guerrero:", ["Xavier (Yo)", "Juan (ID-002)", "Maria (ID-003)"])
     elif pass_adm:
         st.error("Código incorrecto.")
 
