@@ -5,23 +5,40 @@ from PIL import Image
 import io
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Jarvis Core v2.0", page_icon="🦾", layout="wide")
+st.set_page_config(page_title="Jarvis Core - System V2.1", page_icon="🦾", layout="wide")
 
-# --- 2. FUNCIÓN DE ANÁLISIS (ACTUALIZADA A GEMINI 3.1) ---
-def analizar_con_jarvis(image_file, api_key):
-    # Convertir imagen a base64
+# Estilo visual personalizado
+st.markdown("""
+    <style>
+    .stProgress > div > div > div > div { background-color: #00d4ff; }
+    .stMetric { background-color: #1e2130; padding: 15px; border-radius: 10px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 2. FUNCIÓN MAESTRA DE ANÁLISIS (GEMINI 3.1) ---
+def analizar_con_jarvis(image_file, api_key, objetivo, calorias_meta):
     img_byte_arr = io.BytesIO()
     image_file.save(img_byte_arr, format='JPEG')
     img_b64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
 
-    # USAMOS EL MODELO 3.1 FLASH (El más moderno de tu lista)
     model_name = "gemini-3.1-flash-lite-preview"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
     
+    prompt = f"""
+    Actúa como Jarvis, experto en nutrición para Xavier Cevallos.
+    Objetivo actual: {objetivo}. Meta diaria: {calorias_meta} kcal.
+    Enfoque: Hipertrofia de pierna y glúteo.
+    Analiza la imagen y entrega:
+    1. Identificación de alimentos.
+    2. Macros (Prot, Carb, Fat) y Calorías.
+    3. Porcentaje que este plato representa de su meta diaria.
+    4. Recomendación técnica para optimizar el crecimiento muscular hoy.
+    """
+
     payload = {
         "contents": [{
             "parts": [
-                {"text": "Actúa como Jarvis. Analiza esta comida para Xavier. Dame calorías y macros (Proteína, Carb, Grasa) enfocados en hipertrofia de pierna y glúteo. Sé técnico y motivador."},
+                {"text": prompt},
                 {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
             ]
         }]
@@ -30,40 +47,26 @@ def analizar_con_jarvis(image_file, api_key):
     response = requests.post(url, json=payload)
     return response.json()
 
-# --- 3. INTERFAZ ---
-st.title("🦾 JARVIS CORE: GENERATION 3")
-st.markdown("---")
+# --- 3. BARRA LATERAL: PERFIL Y METAS ---
+st.sidebar.header("👤 Perfil: Xavier Cevallos")
+objetivo = st.sidebar.radio("Objetivo del Ciclo:", ["Ganancia de Masa (Bulk)", "Definición (Cut)", "Mantenimiento"])
+cal_meta = st.sidebar.number_input("Meta Calorías Diarias:", value=2800, step=50)
 
-if "GOOGLE_API_KEY" in st.secrets:
-    api_key = st.secrets["GOOGLE_API_KEY"]
-else:
-    st.error("⚠️ Configura la API KEY en Secrets.")
-    st.stop()
+st.sidebar.markdown("---")
+st.sidebar.subheader("💧 Hidratación")
+if 'vasos' not in st.session_state: st.session_state.vasos = 0
+col_h1, col_h2 = st.sidebar.columns(2)
+if col_h1.button("➕ Agua"): st.session_state.vasos += 1
+if col_h2.button("➖"): st.session_state.vasos = max(0, st.session_state.vasos - 1)
+st.sidebar.metric("Vasos de agua", f"{st.session_state.vasos} / 12")
 
-archivo = st.file_uploader("Sube tu biomasa (comida)...", type=["jpg", "png", "jpeg"])
+# --- 4. INTERFAZ PRINCIPAL ---
+st.title("🦾 JARVIS CORE: INTEGRATED SYSTEM")
 
-if archivo:
-    img = Image.open(archivo)
-    st.image(img, use_container_width=True)
-    
-    if st.button("EJECUTAR ANÁLISIS"):
-        with st.spinner("🤖 Jarvis procesando con Gemini 3.1..."):
-            try:
-                res = analizar_con_jarvis(img, api_key)
-                
-                if 'candidates' in res:
-                    texto = res['candidates'][0]['content']['parts'][0]['text']
-                    st.success("Análisis de Jarvis:")
-                    st.markdown(texto)
-                else:
-                    st.error(f"Error de Google: {res.get('error', {}).get('message', 'Error desconocido')}")
-            except Exception as e:
-                st.error(f"Fallo de sistema: {e}")
+tabs = st.tabs(["🍎 Nutrición", "👣 Actividad", "📊 Progreso"])
 
-# --- 4. LOG DE ENTRENAMIENTO ---
-st.markdown("---")
-st.subheader("🏋️ Registro de Fuerza")
-ejer = st.selectbox("Ejercicio:", ["Smith Machine Lunges", "Hip Thrust", "RDL", "Sentadilla Búlgara"])
-peso = st.number_input("Peso (lb/kg):", 0)
-if st.button("GUARDAR EN EL NÚCLEO"):
-    st.success(f"Dato guardado: {ejer} con {peso}. ¡A por la hipertrofia!")
+with tabs[0]:
+    st.subheader("Escaneo de Biomasa Nutricional")
+    if "GOOGLE_API_KEY" in st.secrets:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        archivo =
