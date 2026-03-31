@@ -1,50 +1,41 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
-import os
 
-# --- 1. FORZAR VERSIÓN ESTABLE (FIX 404) ---
-# Esta línea le dice a la librería de Google que ignore la v1beta
-os.environ["GOOGLE_API_VERSION"] = "v1"
-
-# --- 2. CONFIGURACIÓN DE PÁGINA ---
+# --- CONFIGURACIÓN ---
 st.set_page_config(page_title="Jarvis Core", page_icon="🦾")
 
-# --- 3. CONFIGURACIÓN DE IA ---
+# Verificación de conexión
 if "GOOGLE_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    try:
-        # Usamos el nombre del modelo sin prefijos para máxima compatibilidad
-        model = genai.GenerativeModel('gemini-1.5-flash')
-    except Exception as e:
-        st.error(f"Error de núcleo: {e}")
+    api_key = st.secrets["GOOGLE_API_KEY"]
+    genai.configure(api_key=api_key)
+    # Usamos el modelo más estable
+    model = genai.GenerativeModel('gemini-1.5-flash')
 else:
-    st.error("⚠️ Falta API KEY en Secrets.")
+    st.error("⚠️ Error Crítico: No se encontró la API KEY en los Secrets.")
 
-# --- 4. LÓGICA DE NUTRICIÓN ---
-SISTEMA_EXPERTO = "Eres experto en nutrición para hipertrofia. Analiza la imagen y da calorías y macros."
+st.title("🦾 JARVIS CORE: SYSTEM V1.1")
 
-st.title("🦾 JARVIS CORE: SCANNER")
-
-archivo = st.file_uploader("Sube tu plato...", type=["jpg", "png", "jpeg"])
+# Interfaz de escaneo
+archivo = st.file_uploader("Sube tu plato de hoy...", type=["jpg", "png", "jpeg"])
 
 if archivo:
     img = Image.open(archivo)
     st.image(img, use_container_width=True)
     
-    if st.button("ANALIZAR"):
+    if st.button("ANALIZAR NUTRIENTES"):
         with st.spinner("🤖 Jarvis analizando..."):
             try:
-                # LLAMADA LIMPIA
-                response = model.generate_content([SISTEMA_EXPERTO, img])
-                st.success("Análisis:")
+                # Prompt directo para evitar fallos de v1beta
+                response = model.generate_content([
+                    "Analiza esta comida para Xavier. Dame calorías y macros aproximados (Proteína, Carb, Grasa) para sus metas de hipertrofia.", 
+                    img
+                ])
+                st.success("Análisis de Jarvis:")
                 st.markdown(response.text)
             except Exception as e:
-                st.error(f"Error persistente: {e}")
-                st.info("Xavier, si esto sigue, intenta crear una API KEY nueva en AI Studio. Las llaves viejas a veces se quedan 'atrapadas' en la versión beta.")
+                st.error(f"Error de conexión: {e}")
+                st.info("Si el error dice 'API_KEY_INVALID', revisa que en Secrets no haya espacios antes o después de la llave.")
 
-# --- 5. LOG GYM ---
-st.markdown("---")
-peso = st.number_input("Peso (lb):", min_value=0)
-if st.button("GUARDAR"):
-    st.success(f"Registrado: {peso}lb")
+# Estado en la barra lateral
+st.sidebar.info(f"Estado: {'Conectado ✅' if 'GOOGLE_API_KEY' in st.secrets else 'Desconectado ❌'}")
