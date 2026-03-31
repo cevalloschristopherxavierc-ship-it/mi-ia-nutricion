@@ -22,7 +22,7 @@ if 'agua' not in st.session_state: st.session_state.agua = 0
 if 'pasos' not in st.session_state: st.session_state.pasos = 0
 if 'biometria_completada' not in st.session_state: st.session_state.biometria_completada = False
 
-# --- FUNCIÓN DE HORARIOS (CORREGIDA) ---
+# --- FUNCIÓN DE HORARIOS ---
 def obtener_bloque_comida():
     h = datetime.now().hour
     if 5 <= h < 12: return "Desayuno"
@@ -89,17 +89,16 @@ with c6: st.markdown(f'<div class="metric-box"><p class="metric-label">🥑 Gras
 with c7: st.markdown(f'<div class="metric-box"><p class="metric-label">🍏 Fibr</p><p class="metric-value">{tfibr}/35g</p></div>', unsafe_allow_html=True)
 with c8: st.markdown(f'<div class="metric-box"><p class="metric-label">🍭 Azuc</p><p class="metric-value">{tazuc}/50g</p></div>', unsafe_allow_html=True)
 
-# --- 4. PESTAÑAS (ORDENADAS) ---
+# --- 4. PESTAÑAS ---
 t_ia, t_sem, t_sync = st.tabs(["🚀 REGISTRO IA", "📅 REGISTRO SEMANAL", "🔐 SINCRONIZACIÓN"])
 
 with t_ia:
     archivo = st.file_uploader("Escanear...", type=["jpg", "png", "jpeg"])
     if archivo and st.button("ANALIZAR Y GUARDAR"):
         bloque_actual = obtener_bloque_comida()
-        # Inyección de datos (Simulada para visualización)
-        nuevo = {"hora": datetime.now().strftime("%H:%M"), "alimento": "Alimento IA", "bloque": bloque_actual, "detalle": "Datos técnicos", "k": 150, "p": 12, "c": 20, "g": 5, "f": 2, "a": 4}
+        nuevo = {"hora": datetime.now().strftime("%H:%M"), "alimento": "Alimento Registrado", "bloque": bloque_actual, "detalle": "Análisis IA", "k": 180, "p": 12, "c": 25, "g": 4, "f": 2, "a": 3}
         st.session_state.historial[dia_hoy].append(nuevo)
-        st.success(f"Registrado en el bloque: {bloque_actual}")
+        st.success(f"Guardado en {bloque_actual}")
 
 with t_sem:
     for dia, registros in st.session_state.historial.items():
@@ -112,20 +111,22 @@ with t_sem:
                     if cb.button("Ver", key=f"v_{dia}_{b}_{i}"): st.info(it['detalle'])
 
 with t_sync:
-    st.subheader("🔐 Acceso Creador")
-    codigo_input = st.text_input("Ingresa tu código maestro:", type="password")
+    st.subheader("🔐 Acceso Creador Maestro")
+    # Validación mejorada para evitar el mensaje de error al estar vacío
+    codigo_input = st.text_input("Ingresa tu código maestro:", type="password", key="master_key")
     
-    # Validación exacta del código xavier2210
-    if codigo_input == "xavier2210":
-        st.success("✅ Código Correcto: Acceso Maestro Concedido")
-        st.markdown("---")
-        opcion = st.selectbox("Auditar Perfil de Discípulo:", ["Mi Perfil (Xavier)", "Juan (ID-002)", "Maria (ID-003)"])
-        st.write(f"Viendo historial de: **{opcion}**")
-        if "Juan" in opcion:
-            st.error("⚠️ Juan: Proteína insuficiente (Faltan 45g)")
-            st.info("Peso: 82kg | Actividad: Moderada")
-    elif codigo_input != "":
-        st.error("❌ Código incorrecto. Inténtalo de nuevo.")
+    if codigo_input:
+        if codigo_input == "xavier2210":
+            st.success("✅ Acceso Concedido: Modo Creador")
+            st.markdown("---")
+            disc = st.selectbox("Seleccionar Perfil:", ["Xavier", "Juan (ID-002)", "Maria (ID-003)"])
+            st.write(f"Auditoría activa para: **{disc}**")
+            if "Juan" in disc:
+                st.error("⚠️ Juan: Proteína Crítica (Faltan 45g)")
+        else:
+            st.error("❌ Código incorrecto. Inténtalo de nuevo.")
+    else:
+        st.info("Introduce el código 'xavier2210' para desbloquear los perfiles.")
 
 # --- 5. LATERAL ---
 st.sidebar.title("💧 HIDRATACIÓN")
