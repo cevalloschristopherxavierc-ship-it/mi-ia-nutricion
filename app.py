@@ -69,4 +69,34 @@ with tabs[0]:
     st.subheader("Escaneo de Biomasa Nutricional")
     if "GOOGLE_API_KEY" in st.secrets:
         api_key = st.secrets["GOOGLE_API_KEY"]
-        archivo =
+        archivo = st.file_uploader("Sube tu plato...", type=["jpg", "png", "jpeg"])
+
+        if archivo:
+            img = Image.open(archivo)
+            st.image(img, use_container_width=True)
+            
+            if st.button("EJECUTAR ANÁLISIS COMPLETO"):
+                with st.spinner("🤖 Jarvis procesando macros..."):
+                    res = analizar_con_jarvis(img, api_key, objetivo, cal_meta)
+                    if 'candidates' in res:
+                        st.markdown(res['candidates'][0]['content']['parts'][0]['text'])
+                    else:
+                        st.error("Error en la conexión con el núcleo.")
+    else:
+        st.error("Falta API KEY.")
+
+with tabs[1]:
+    st.subheader("Seguimiento de Movimiento")
+    col_p1, col_p2 = st.columns(2)
+    pasos = col_p1.number_input("Pasos hoy:", min_value=0, value=8000)
+    entreno = col_p2.selectbox("Tipo de entrenamiento:", ["Leg Day (Enfoque Glúteo)", "Push Day", "Pull Day", "Descanso Activo"])
+    
+    st.progress(min(pasos/10000, 1.0), text=f"Progreso de pasos: {pasos}/10000")
+    if st.button("Guardar Actividad"):
+        st.success(f"Día de {entreno} registrado correctamente.")
+
+with tabs[2]:
+    st.subheader("Estado del Sistema")
+    st.info(f"Sistema optimizado para clima de Portoviejo. Recordatorio: Mantén la hidratación alta tras el fútbol.")
+    st.metric("Meta de Proteína Estimada", f"{int(cal_meta * 0.3 / 4)}g")
+    st.metric("Estado de Conexión", "Online ✅")
