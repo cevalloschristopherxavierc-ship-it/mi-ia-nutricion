@@ -6,26 +6,29 @@ import requests
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="Jarvis Core", page_icon="🦾", layout="wide")
 
-# --- 2. CONFIGURACIÓN DE IA (FORCE STABLE) ---
+# --- 2. CONFIGURACIÓN DE IA (SOLUCIÓN DEFINITIVA) ---
 if "GOOGLE_API_KEY" in st.secrets:
-    # Usamos la configuración estándar
+    # Configuramos la nueva llave
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
     
-    # IMPORTANTE: No usamos 'models/' ni rutas largas para evitar el error 404
+    # Usamos un bloque de control para asegurar la conexión
     try:
+        # Definimos el modelo de forma simple (la versión 0.8.3 lo llevará a la estable)
         model = genai.GenerativeModel('gemini-1.5-flash')
     except Exception as e:
-        st.error(f"Error al conectar con el cerebro de la IA: {e}")
+        st.error(f"Error de inicialización: {e}")
 else:
-    st.error("⚠️ Error: Falta 'GOOGLE_API_KEY' en los Secrets.")
+    st.error("⚠️ Error: Falta 'GOOGLE_API_KEY' en los Secrets de Streamlit.")
 
 # --- 3. LÓGICA DE NUTRICIÓN ---
 SISTEMA_EXPERTO = """
-Eres Jarvis, experto en nutrición para hipertrofia. 
-Analiza la imagen y entrega: 
-1. Alimentos. 2. Macros aprox (Cal, Prot, Carb, Fat). 
-3. ¿Es bueno para pierna/glúteo? 4. ¿Qué falta?
-Sé directo y técnico.
+Eres Jarvis, experto en nutrición para hipertrofia de pierna y glúteo.
+Analiza la imagen y entrega:
+1. Alimentos.
+2. Macros aproximados (Calorías, Prot, Carb, Fat).
+3. ¿Ayuda a ganar músculo hoy?
+4. ¿Qué le falta al plato?
+Responde directo y técnico.
 """
 
 # --- 4. INTERFAZ ---
@@ -37,30 +40,21 @@ if archivo:
     img = Image.open(archivo)
     st.image(img, use_container_width=True)
     
-    if st.button("ANALIZAR MACROS"):
-        with st.spinner("🤖 Analizando biomasa..."):
+    if st.button("EJECUTAR ANÁLISIS DE MACROS"):
+        with st.spinner("🤖 Jarvis analizando biomasa..."):
             try:
-                # LLAMADA LIMPIA
+                # Esta es la llamada que ya no debería dar 404
                 response = model.generate_content([SISTEMA_EXPERTO, img])
                 st.success("Análisis completado:")
                 st.markdown(response.text)
             except Exception as e:
                 st.error(f"Error persistente: {e}")
-                st.info("💡 RECUERDA: Si el error sigue, borra tu API KEY actual en AI Studio y crea una TOTALMENTE NUEVA.")
+                st.warning("Si el error persiste tras cambiar la llave y el requirements.txt, revisa que tu cuenta de Google Cloud no tenga restricciones.")
 
-# --- 5. CONTROL Y LOG ---
+# --- 5. CONTROL DE ENTORNO (TU LLAVE VERIFICADA) ---
 st.markdown("---")
-col1, col2 = st.columns(2)
-
-with col1:
-    if st.button("ENCENDER CHRIS-TV"):
-        key = st.secrets.get("IFTTT_KEY", "bQpyH6xT10n6e2YJsTXE_oK22s7GQTLuqEiMFNNrvDd")
-        url = f"https://maker.ifttt.com/trigger/prender_tele/with/key/{key}"
+if st.button("ENCENDER CHRIS-TV"):
+    if "IFTTT_KEY" in st.secrets:
+        url = f"https://maker.ifttt.com/trigger/prender_tele/with/key/{st.secrets['IFTTT_KEY']}"
         requests.post(url)
-        st.success("Señal enviada.")
-
-with col2:
-    st.subheader("🏋️ Registro Rápido")
-    peso_log = st.number_input("Peso (lb):", 0)
-    if st.button("Guardar"):
-        st.write(f"Guardado en el núcleo: {peso_log}lb")
+        st.success("Señal enviada al servidor IFTTT.")
